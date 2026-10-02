@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="noindex">
+<title>Stack technique</title>
+<script>
+/* Thème : ?theme=dark|light force, sinon on suit le système. Posé avant le premier rendu pour éviter le flash. */
+(function(){
+  var p = new URLSearchParams(location.search).get("theme");
+  var sombre = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.dataset.theme = (p === "dark" || p === "light") ? p : (sombre ? "dark" : "light");
+})();
+</script>
+<style>
+/* ───────── Jetons ───────── */
+:root{
+  color-scheme:light;
+  --font:-apple-system,"SF Pro Display","SF Pro Text","Helvetica Neue","Segoe UI",system-ui,sans-serif;
+  --bg:#f5f5f7; --glow-1:rgba(0,122,255,.10); --glow-2:rgba(175,82,222,.07);
+  --text:#1d1d1f; --text-2:#6e6e73; --text-3:#a1a1a6;
+  --hair:rgba(60,60,67,.12); --hover:rgba(118,118,128,.10);
+  --tile:#ffffff; --tile-line:rgba(0,0,0,.07); --glyph:#1d1d1f;
+  --tile-strong:#1d1d1f; --tile-strong-line:#1d1d1f; --glyph-strong:#ffffff;
+  --tile-soft-line:rgba(60,60,67,.30); --glyph-soft:#515154;
+  --tile-dim:#eeeef1; --tile-dim-line:rgba(0,0,0,.025); --glyph-dim:#cdcdd2; --name-dim:#bcbcc2;
+  --tile-shadow:drop-shadow(0 1px 1px rgba(0,0,0,.05)) drop-shadow(0 7px 14px rgba(0,0,0,.07));
+  --tile-shadow-up:drop-shadow(0 2px 2px rgba(0,0,0,.06)) drop-shadow(0 14px 22px rgba(0,0,0,.12));
+  --glass:rgba(255,255,255,.64); --glass-line:rgba(255,255,255,.75);
+  --glass-shadow:0 0 0 .5px rgba(0,0,0,.06),0 28px 70px rgba(0,0,0,.09),0 2px 8px rgba(0,0,0,.04);
+  --card:rgba(255,255,255,.66); --card-line:rgba(0,0,0,.05);
+  --track:rgba(118,118,128,.12); --thumb:#ffffff; --thumb-shadow:0 1px 4px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.04);
+  --accent:#0071e3;
+  --ok:#34c759; --warn:#ff9500; --crit:#ff3b30; --todo:#8e8e93;
+  --l-pilotage:#007aff; --l-memoire:#af52de; --l-code:#0b9aa8; --l-donnees:#ff2d55;
+  --link-rest:rgba(60,60,67,.18); --link-faint:rgba(60,60,67,.055);
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#000000; --glow-1:rgba(10,132,255,.20); --glow-2:rgba(191,90,242,.13);
+  --text:#f5f5f7; --text-2:#a1a1a6; --text-3:#6e6e73;
+  --hair:rgba(235,235,245,.11); --hover:rgba(235,235,245,.08);
+  --tile:#1c1c1e; --tile-line:rgba(255,255,255,.09); --glyph:#f5f5f7;
+  --tile-strong:#f5f5f7; --tile-strong-line:#f5f5f7; --glyph-strong:#1d1d1f;
+  --tile-soft-line:rgba(235,235,245,.28); --glyph-soft:#c7c7cc;
+  --tile-dim:#0e0e10; --tile-dim-line:rgba(255,255,255,.04); --glyph-dim:#36363a; --name-dim:#434347;
+  --tile-shadow:drop-shadow(0 1px 1px rgba(0,0,0,.5)) drop-shadow(0 8px 16px rgba(0,0,0,.5));
+  --tile-shadow-up:drop-shadow(0 2px 2px rgba(0,0,0,.5)) drop-shadow(0 16px 26px rgba(0,0,0,.7));
+  --glass:rgba(30,30,32,.62); --glass-line:rgba(255,255,255,.10);
+  --glass-shadow:0 0 0 .5px rgba(0,0,0,.6),0 30px 80px rgba(0,0,0,.55);
+  --card:rgba(255,255,255,.055); --card-line:rgba(255,255,255,.06);
+  --track:rgba(118,118,128,.24); --thumb:#636366; --thumb-shadow:0 1px 4px rgba(0,0,0,.4);
+  --accent:#0a84ff;
+  --ok:#30d158; --warn:#ff9f0a; --crit:#ff453a; --todo:#8e8e93;
+  --l-pilotage:#0a84ff; --l-memoire:#bf5af2; --l-code:#40c8e0; --l-donnees:#ff375f;
+  --link-rest:rgba(235,235,245,.17); --link-faint:rgba(235,235,245,.05);
+}
+
+/* ───────── Base ───────── */
+*{box-sizing:border-box;margin:0}
+[hidden]{display:none!important}   /* sans lui, le display:grid des boutons ronds l'emporte et le bouton Plan s'affiche dans la copie partagée */
+html,body{height:100%}
+body{
+  font-family:var(--font);font-size:13px;line-height:1.4;color:var(--text);background-color:var(--bg);
+  background-image:radial-gradient(760px 520px at 96% -6%,var(--glow-1),transparent 70%),radial-gradient(680px 560px at 104% 96%,var(--glow-2),transparent 70%);
+  background-attachment:fixed;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden;
+}
+button{font:inherit;color:inherit}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{height:100vh;min-height:760px;display:grid;grid-template-columns:minmax(0,1fr) 348px;grid-template-rows:72px minmax(0,1fr);column-gap:24px;padding:0 24px 20px 28px}
+
+/* ───────── Barre du haut ───────── */
+.top{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) 348px;column-gap:24px;align-items:center}
+.top-main{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;column-gap:16px}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+.brand h1{font-size:21px;font-weight:600;white-space:nowrap}
+.brand span{font-size:13px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-side{display:flex;justify-content:flex-end;align-items:center;gap:12px}
+.maj{font-size:12px;color:var(--text-2)}
+.icon-btn{width:30px;height:30px;border-radius:50%;border:0;background:var(--track);display:grid;place-items:center;cursor:pointer;transition:background .2s}
+.icon-btn:hover{background:var(--hover)}
+.icon-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+.seg{position:relative;display:inline-flex;padding:2px;border-radius:10px;background:var(--track)}
+.seg-thumb{position:absolute;top:2px;left:0;height:calc(100% - 4px);width:0;border-radius:8px;background:var(--thumb);box-shadow:var(--thumb-shadow);transition:transform .32s cubic-bezier(.3,.7,.2,1),width .32s cubic-bezier(.3,.7,.2,1)}
+.seg button{position:relative;z-index:1;display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 15px;border:0;background:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.seg .sw{width:7px;height:7px;border-radius:50%;background:var(--c)}
+
+/* ───────── Carte ───────── */
+.map{position:relative;z-index:0;display:grid;grid-auto-rows:minmax(116px,1fr);min-height:0}
+.row{display:grid;grid-template-columns:116px minmax(0,1fr);align-items:start;padding-top:17px;border-top:1px solid var(--hair)}
+.row:first-of-type{border-top-color:transparent}
+.row-head{padding-top:12px;cursor:default}
+.row-name{font-size:13px;font-weight:600;line-height:16px}
+.row-count{font-size:12px;color:var(--text-2);margin-top:2px}
+.tiles{display:flex;justify-content:center}
+.tile{position:relative;z-index:1;flex:0 1 100px;min-width:0;display:flex;flex-direction:column;align-items:center;gap:7px;padding:0;border:0;background:none;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent}
+.tile:focus-visible{outline:none}
+.ico-wrap{position:relative;width:56px;height:56px;filter:var(--tile-shadow);transition:transform .28s cubic-bezier(.2,.8,.2,1),filter .28s}
+.ico{display:block;width:100%;height:100%;overflow:visible}
+.plate{fill:var(--tile);stroke:var(--tile-line);stroke-width:1.2;transition:fill .22s,stroke .22s}
+.glyph{fill:none;stroke:var(--glyph);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;transition:stroke .22s}
+.ring{fill:none;stroke:var(--accent);stroke-width:3;opacity:0;transition:opacity .18s}
+.imp-3 .plate{fill:var(--tile-strong);stroke:var(--tile-strong-line)}
+.imp-3 .glyph{stroke:var(--glyph-strong)}
+.imp-1 .plate{fill:var(--bg);stroke:var(--tile-soft-line)}
+.imp-1 .glyph{stroke:var(--glyph-soft)}
+.imp-1 .ico-wrap,.etat-a-venir .ico-wrap{filter:none}
+.etat-a-venir .plate{fill:var(--bg);stroke:var(--tile-soft-line);stroke-dasharray:5 4.5}
+.etat-a-venir .glyph{stroke:var(--text-3)}
+.etat-a-venir .name{color:var(--text-2)}
+.badge{position:absolute;top:-2px;right:-2px;width:12px;height:12px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2.5px var(--bg);transition:opacity .22s}
+.name{max-width:112px;margin:0 -6px;font-size:12px;line-height:15px;font-weight:500;text-align:center;text-wrap:balance;color:var(--text);
+  text-shadow:0 0 3px var(--bg),0 0 3px var(--bg),0 0 7px var(--bg),0 0 7px var(--bg);transition:color .22s}
+.tile:hover .ico-wrap,.tile.is-active .ico-wrap{transform:translateY(-1px) scale(1.045);filter:var(--tile-shadow-up)}
+.tile.imp-1:hover .ico-wrap,.tile.imp-1.is-active .ico-wrap,.tile.etat-a-venir:hover .ico-wrap,.tile.etat-a-venir.is-active .ico-wrap{filter:none}
+.tile.is-active .ring,.tile:focus-visible .ring{opacity:1}
+.tile.is-pinned .name{font-weight:600}
+.map.dimming .tile.on{z-index:3}
+.map.dimming .tile:not(.on) .plate{fill:var(--tile-dim);stroke:var(--tile-dim-line);stroke-dasharray:none}
+.map.dimming .tile:not(.on) .glyph{stroke:var(--glyph-dim)}
+.map.dimming .tile:not(.on) .name{color:var(--name-dim)}
+.map.dimming .tile:not(.on) .ico-wrap{filter:none}
+.map.dimming .tile:not(.on) .badge{opacity:.3}
+
+/* ───────── Liens ───────── */
+.links{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;overflow:visible}
+.links.dessus{z-index:2}
+.links path{fill:none}
+.base path{stroke:var(--link-rest);stroke-width:1;stroke-linecap:round;transition:stroke .25s,opacity .25s}
+.base.faint path{stroke:var(--link-faint)}
+.base path.off{opacity:0}
+.hot g{transition:opacity .2s}
+.hot .l{stroke:var(--c);stroke-width:1.75;stroke-dasharray:1;stroke-dashoffset:0;animation:trace .46s cubic-bezier(.45,0,.2,1) both}
+.hot .tip{stroke:var(--c);stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;animation:appear .18s both}
+.hot .dot{fill:var(--c);animation:appear .18s both}
+.hot.instant .l,.hot.instant .tip,.hot.instant .dot{animation:none}
+.hot.solo g:not(.is-solo){opacity:.2}
+.hot g.is-solo .l{stroke-width:2.6}
+@keyframes trace{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes appear{from{opacity:0}to{opacity:1}}
+
+/* ───────── Inspecteur ───────── */
+.inspector{position:relative;min-height:0;display:flex;flex-direction:column;border-radius:26px;background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--glass-shadow);
+  -webkit-backdrop-filter:blur(42px) saturate(180%);backdrop-filter:blur(42px) saturate(180%);overflow:hidden}
+.insp{flex:1;min-height:0;overflow-y:auto;padding:22px 18px 26px;-webkit-mask-image:linear-gradient(#000 calc(100% - 30px),transparent);mask-image:linear-gradient(#000 calc(100% - 30px),transparent);scrollbar-width:thin;scrollbar-color:var(--hair) transparent}
+.insp>*{animation:appear .22s both}
+.insp.still>*{animation:none}
+.eyebrow{font-size:12px;font-weight:600;color:var(--text-2);letter-spacing:.01em}
+.i-title{font-size:22px;font-weight:600;line-height:1.15;margin-top:2px}
+.i-sub{font-size:13px;color:var(--text-2);margin-top:4px}
+.i-head{display:grid;grid-template-columns:60px minmax(0,1fr) 28px;column-gap:14px;align-items:center}
+.i-head .ico-wrap{width:60px;height:60px}
+.i-head .i-title{font-size:20px;margin:0}
+.i-role{font-size:14px;line-height:1.45;margin:16px 2px 0}
+.close{width:28px;height:28px;border-radius:50%;border:0;background:var(--track);display:grid;place-items:center;cursor:pointer;align-self:start}
+.close svg{width:11px;height:11px;fill:none;stroke:var(--text-2);stroke-width:1.8;stroke-linecap:round}
+.card{margin-top:14px;border-radius:16px;background:var(--card);border:1px solid var(--card-line);overflow:hidden}
+.sec{margin:16px 4px 0;display:flex;justify-content:space-between;align-items:baseline;font-size:12px;font-weight:600;color:var(--text-2)}
+.sec+.card{margin-top:7px}
+.sec em{font-style:normal;font-weight:500}
+.age{display:grid;grid-template-columns:52px minmax(0,1fr);column-gap:14px;align-items:center;padding:14px}
+.age-ring{position:relative;width:52px;height:52px}
+.age-ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:15px;font-weight:600}
+.age strong{display:block;font-size:17px;font-weight:600;line-height:1.2}
+.age span{display:block;font-size:12px;color:var(--text-2);margin-top:2px}
+.kv{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:14px;padding:10px 14px;font-size:13px}
+.kv+.kv::before,.lk+.lk::before,.gauge+.gauge::before{content:"";position:absolute;top:0;right:0;left:14px;height:1px;background:var(--hair)}
+.kv>span:first-child{color:var(--text-2)}
+.kv>span:last-child{text-align:right}
+.kv .note{grid-column:1/-1;text-align:left;color:var(--text-2);font-size:12px;line-height:16px;margin-top:4px}
+.pill{display:inline-flex;align-items:center;gap:7px;font-weight:500}
+.pill i,.leg i{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+.lk{position:relative;display:grid;grid-template-columns:8px minmax(0,1fr);column-gap:11px;width:100%;padding:7px 14px;border:0;background:none;text-align:left;cursor:pointer;transition:background .15s}
+.lk:hover,.lk:focus-visible{background:var(--hover)}
+.lk:focus-visible{outline-offset:-2px}
+.lk i{width:8px;height:8px;border-radius:50%;background:var(--c);margin-top:5px}
+.lk b{display:block;font-size:13px;font-weight:600}
+.lk span{display:block;font-size:12px;line-height:16px;color:var(--text-2)}
+.lk+.lk::before{left:33px}
+.empty{padding:12px 14px;font-size:12px;color:var(--text-2)}
+.rings{display:grid;grid-template-columns:104px minmax(0,1fr);column-gap:18px;align-items:center;padding:12px 16px}
+.rings svg{display:block;width:104px;height:104px}
+.leg{display:flex;align-items:center;gap:9px;font-size:13px;padding:3.5px 0}
+.leg span{flex:1}
+.leg b{font-weight:600;font-variant-numeric:tabular-nums}
+.gauge{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 84px 18px;column-gap:12px;align-items:center;width:100%;padding:5.5px 14px;border:0;background:none;text-align:left;font-size:13px}
+button.gauge{cursor:pointer;transition:background .15s}
+button.gauge:hover{background:var(--hover)}
+button.gauge:focus-visible{outline-offset:-2px}
+.gauge .lab{display:flex;align-items:center;gap:9px;min-width:0}
+.gauge .lab i{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+.gauge .bar{height:4px;border-radius:2px;background:var(--track);overflow:hidden}
+.gauge .bar u{display:block;height:100%;border-radius:2px;background:var(--c,var(--text));opacity:.9}
+.gauge b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.hint{margin:12px 6px 0;font-size:12px;line-height:17px;color:var(--text-2)}
+kbd{font:inherit;font-size:11px;padding:1px 5px;border-radius:5px;background:var(--track)}
+
+/* ───────── Listes d'un module (ce qu'il contient, ce qu'on peut ouvrir) ───────── */
+a.lk{text-decoration:none;color:inherit}
+.lk.ouvrable{grid-template-columns:8px minmax(0,1fr) 14px}
+.lk .ext{align-self:center;width:13px;height:13px;fill:none;stroke:var(--text-3);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.lk:hover .ext,.lk:focus-visible .ext{stroke:var(--accent)}
+.lk.fixe{cursor:default}
+.lk.fixe:hover{background:none}
+.lk.fixe i{background:var(--text-3);opacity:.5}
+
+/* ───────── Plan d'action ───────── */
+.icon-btn{position:relative}
+.pastille{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--crit);color:#fff;
+  font-size:10px;font-weight:700;line-height:16px;text-align:center;box-shadow:0 0 0 2px var(--bg);font-variant-numeric:tabular-nums}
+.tache{border:0}
+.tache+.tache{border-top:1px solid var(--hair)}
+.tache summary{list-style:none;display:grid;grid-template-columns:9px minmax(0,1fr);column-gap:11px;padding:10px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tache summary::-webkit-details-marker{display:none}
+.tache summary:hover,.tache summary:focus-visible{background:var(--hover)}
+.tache summary:focus-visible{outline-offset:-2px}
+.tache .urg{width:9px;height:9px;border-radius:50%;background:var(--c);margin-top:5px}
+.tache .t{font-size:13px;font-weight:600;line-height:1.35}
+.tache .meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.chip{font-size:11px;line-height:17px;padding:0 7px;border-radius:9px;background:var(--track);color:var(--text-2);white-space:nowrap}
+.chip.neuf{background:var(--accent);color:#fff}
+.chip.date{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
+.tache .corps{padding:2px 14px 14px 34px;display:flex;flex-direction:column;gap:9px}
+.tache .corps p,.tache .corps li{font-size:12.5px;line-height:18px;color:var(--text-2)}
+.tache .corps ol{margin:0;padding-left:17px;display:flex;flex-direction:column;gap:5px}
+.tache .corps ol li::marker{color:var(--text-3);font-size:11px}
+.tache .corps .src{font-size:11px;color:var(--text-3)}
+.tache .voir{align-self:flex-start;border:0;background:var(--track);border-radius:9px;padding:5px 11px;font-size:12px;font-weight:500;cursor:pointer}
+.tache .voir:hover{background:var(--hover)}
+.tache[data-etat="fait"] summary .t{text-decoration:line-through;color:var(--text-3);font-weight:500}
+.tache[data-etat="fait"] .urg{background:var(--ok);opacity:.55}
+
+/* ───────── Lien de retour (posé par l'appli qui sert la page, à la place du marqueur RETOUR) ───────── */
+.retour{display:inline-flex;align-items:center;gap:5px;align-self:center;height:28px;padding:0 12px 0 9px;margin-right:2px;border-radius:14px;background:var(--track);
+  font-size:13px;font-weight:500;color:var(--accent);text-decoration:none;white-space:nowrap}
+.retour::before{content:"";width:7px;height:7px;margin-left:3px;border-left:1.8px solid currentColor;border-bottom:1.8px solid currentColor;transform:rotate(45deg)}
+.retour:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.resume-bar,.grab,.sheet-close{display:none}
+
+/* ───────── Tablette et téléphone : une colonne, et l'inspecteur devient une feuille qui monte du bas ───────── */
+@media (max-width:1100px){
+  html,body{height:auto;min-height:100%}
+  body{font-size:14px;background-attachment:scroll}
+  button,a{touch-action:manipulation}
+  .app{display:block;height:auto;min-height:0;padding:0 16px calc(var(--sheet-h,0px) + 32px + env(safe-area-inset-bottom,0px))}
+
+  /* Barre du haut : collante, titre + thème sur une ligne, filtre défilant dessous */
+  .top{position:sticky;top:0;z-index:20;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"brand side" "seg seg";row-gap:10px;column-gap:12px;align-items:center;
+    margin:0 -16px;padding:calc(10px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) 10px calc(16px + env(safe-area-inset-left,0px));
+    background:color-mix(in srgb,var(--bg) 80%,transparent);-webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%);border-bottom:1px solid var(--hair)}
+  .top-main{display:contents}
+  .top-main>div:last-child{display:none}
+  .brand{grid-area:brand;gap:8px}
+  .brand h1{font-size:19px}
+  .brand span{display:none}
+  .top-side{grid-area:side}
+  .maj{display:none}
+  .icon-btn{width:34px;height:34px}
+  .seg{grid-area:seg;display:flex;width:100%;min-width:0;max-width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}   /* min-width:0 : sans lui, le filtre élargit toute la page */
+  .seg::-webkit-scrollbar{display:none}
+  .seg button{height:34px;padding:0 6px;gap:6px;font-size:13px;flex:1 1 0;min-width:62px;justify-content:center}
+
+  /* Le résumé en une ligne : ce qui va, ce qui demande ton attention */
+  .resume-bar{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;width:100%;margin:14px 0 2px;padding:12px 14px;border:1px solid var(--card-line);border-radius:16px;background:var(--card);
+    font-size:14px;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .resume-bar .rb-c{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+  .resume-bar .rb-c i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+  .resume-bar .rb-c b{font-weight:600;font-variant-numeric:tabular-nums}
+  .resume-bar .rb-go{margin-left:auto;width:8px;height:8px;border-right:1.8px solid var(--text-3);border-top:1.8px solid var(--text-3);transform:rotate(45deg)}
+
+  /* La carte : une couche par bloc, les tuiles en grille régulière, des cibles assez grandes pour le pouce */
+  .map{display:block}
+  .row{display:block;padding:16px 0 18px}
+  .row-head{padding:0 0 12px;display:flex;gap:8px;align-items:baseline}
+  .row-name{font-size:15px}
+  .row-count{font-size:13px;margin:0}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));justify-content:stretch;gap:16px 4px}
+  .tile{flex:none;width:auto;padding:4px 0;gap:6px}
+  .ico-wrap{width:54px;height:54px}
+  .name{max-width:none;margin:0 2px;font-size:12px}
+  .base{display:none}                      /* au repos, pas de toile de fond : les liens n'apparaissent qu'à la sélection ou au filtre */
+  .hot .l{stroke-width:2}
+
+  /* La feuille */
+  .inspector{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0 auto;max-width:640px;height:max(var(--sheet-h,0px),112px);border-radius:22px 22px 0 0;border-bottom:0;
+    padding-bottom:env(safe-area-inset-bottom,0px);transform:translateY(0);visibility:visible;
+    transition:height .34s cubic-bezier(.2,.8,.2,1),transform .34s cubic-bezier(.2,.8,.2,1),visibility 0s}
+  .inspector[data-feuille="fermee"]{transform:translateY(110%);visibility:hidden;transition:height .34s cubic-bezier(.2,.8,.2,1),transform .34s cubic-bezier(.2,.8,.2,1),visibility 0s linear .34s}
+  .inspector.glisse{transition:none}
+  .grab{display:block;flex:none;width:100%;height:26px;border:0;background:none;cursor:grab;touch-action:none;-webkit-tap-highlight-color:transparent}
+  .grab::before{content:"";display:block;width:38px;height:5px;margin:9px auto 0;border-radius:3px;background:var(--text-3);opacity:.55}
+  .sheet-close{display:grid;place-items:center;position:absolute;top:14px;right:14px;z-index:2;width:32px;height:32px;border-radius:50%;border:0;background:var(--track);cursor:pointer}
+  .sheet-close svg{width:12px;height:12px;fill:none;stroke:var(--text-2);stroke-width:1.8;stroke-linecap:round}
+  .insp{padding:4px 16px 28px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .i-head{grid-template-columns:56px minmax(0,1fr) 36px}
+  .i-head .ico-wrap{width:56px;height:56px}
+  .i-head .close{display:none}
+  .i-title{padding-right:40px}
+  .i-head .i-title{padding-right:0}
+  .i-role{font-size:15px}
+  .sec{font-size:13px;margin-top:18px}
+  .kv{font-size:14px;padding:12px 14px}
+  .kv .note{font-size:13px;line-height:18px}
+  .lk{padding:10px 14px;min-height:48px;align-items:start}
+  .lk b{font-size:15px}
+  .lk span{font-size:13px;line-height:17px}
+  .lk i{margin-top:6px}
+  .leg,.gauge{font-size:14px}
+  .gauge{padding:8px 14px}
+  .age span{font-size:13px}
+  .hint{font-size:13px;line-height:18px}
+  .hint kbd{display:none}
+}
+@media (max-width:1100px) and (min-width:700px){
+  .tiles{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
+  .brand span{display:inline}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+.mot{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:60;max-width:min(560px,calc(100% - 32px));background:var(--text);color:var(--bg);padding:11px 15px;border-radius:13px;font-size:13px;line-height:1.45;box-shadow:0 14px 38px rgba(0,0,0,.30)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="top-main">
+      <div class="brand"><!--RETOUR--><h1>Stack technique</h1><span id="owner"></span></div>
+      <div class="seg" id="seg" role="radiogroup" aria-label="Filtrer les liens par type"><div class="seg-thumb" id="thumb"></div></div>
+      <div></div>
+    </div>
+    <div class="top-side">
+      <span class="maj" id="maj"></span>
+      <button class="icon-btn" id="plan-btn" type="button" hidden aria-label="Ouvrir le plan d'action" title="Plan d'action">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4.5H6.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-13a2 2 0 0 0-2-2H15"/><rect x="9" y="2.8" width="6" height="3.4" rx="1.2"/><path d="M8.6 12.2l1.8 1.8 3.6-3.6M8.6 17h6.8"/></svg>
+        <span class="pastille" id="plan-n" hidden></span>
+      </button>
+      <button class="icon-btn" id="theme" type="button" aria-label="Basculer entre thème clair et thème sombre" title="Thème clair / sombre">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><path d="M12 3.8a8.2 8.2 0 0 1 0 16.4z" fill="currentColor" stroke="none"/></svg>
+      </button>
+    </div>
+  </header>
+  <button class="resume-bar" id="resume" type="button" aria-label="Ouvrir la vue d'ensemble : état de tous les modules"></button>
+  <main class="map" id="map" aria-label="Carte des modules de la stack">
+    <svg class="links" aria-hidden="true" focusable="false"><g class="base" id="base"></g></svg>
+    <svg class="links dessus" aria-hidden="true" focusable="false"><g class="hot" id="hot"></g></svg>
+  </main>
+  <aside class="inspector" id="feuille" data-feuille="fermee" aria-label="Inspecteur">
+    <button class="grab" id="grab" type="button" aria-label="Agrandir ou réduire la fiche" aria-expanded="false"></button>
+    <button class="sheet-close" id="sheet-close" type="button" aria-label="Fermer la fiche"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8"/></svg></button>
+    <div class="insp" id="insp" aria-live="polite"></div>
+  </aside>
+</div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><symbol id="sq" viewBox="0 0 100 100" overflow="visible"><path id="sqp" d=""/></symbol></defs></svg>
+
+<script>window.STACK = {"maj":"2026-09-30","proprietaire":"Raphael · AesomeSoup","types":{"toi":{"nom":"Toi","description":"Par où tu entres dans le système."},"pilote":{"nom":"Pilotes","description":"Les agents IA qui travaillent pour toi. Le modèle derrière doit rester remplaçable."},"memoire":{"nom":"Mémoire","description":"Ce que tes agents savent et se transmettent."},"brique":{"nom":"Briques d'outillage","description":"Les ajouts qui améliorent les pilotes. Chacune doit pouvoir se retirer proprement."},"app":{"nom":"Apps","description":"Ce que tu as construit et qui tourne."},"socle":{"nom":"Socle","description":"Les comptes et serveurs sans lesquels rien ne redémarre."}},"typesDeLien":{"pilotage":{"nom":"Pilotage","description":"Qui commande quoi."},"memoire":{"nom":"Mémoire","description":"Ce qui alimente ou lit le vault."},"code":{"nom":"Code et déploiement","description":"Le chemin du code jusqu'à la mise en ligne."},"donnees":{"nom":"Données","description":"Une app qui lit ou écrit chez une autre."}},"modules":[{"id":"ordinateur","nom":"Ordinateur","type":"toi","importance":2,"role":"Ton poste de travail : VS Code, et une session Claude Code par dossier de projet.","naissance":"2026-05-07","hebergement":"chez toi","techno":"Windows 11 · VS Code · PowerShell","etat":"ok","icone":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"12.5\" rx=\"2.2\"/><path d=\"M8.5 20.5h7M12 16.5v4\"/>"},{"id":"telephone","nom":"Téléphone","type":"toi","importance":2,"role":"Tu parles à l'agent de messagerie en mémos vocaux WhatsApp et tu reçois ton agenda à 7 h et 20 h.","naissance":"2026-08-08","hebergement":"dans ta poche","techno":"WhatsApp","etat":"ok","icone":"<rect x=\"7\" y=\"2.5\" width=\"10\" height=\"19\" rx=\"2.6\"/><path d=\"M10.8 18.6h2.4\"/>"},{"id":"agent-code","nom":"Agent de code","type":"pilote","importance":3,"role":"L'agent qui code sur l'ordinateur. Il lit tes consignes, tes skills et la mémoire de chaque projet.","naissance":"2026-05-07","hebergement":"Ordinateur","techno":"Anthropic · Fable 5.1","etat":"ok","icone":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"3.2\"/><path d=\"M7.5 9.5l3 2.5-3 2.5M13 14.8h3.6\"/>"},{"id":"agent-messagerie","nom":"Agent de messagerie","type":"pilote","importance":3,"role":"Ton assistant WhatsApp : to-do, agenda, rappels, chiffres des boutiques, et du code proposé en PR.","naissance":"2026-08-08","hebergement":"Serveur principal","techno":"Agent maison · Qwen 3.7 Plus (modèle interchangeable)","etat":"ok","icone":"<path d=\"M12 3.6c-4.7 0-8.5 3.3-8.5 7.4 0 2.4 1.3 4.5 3.3 5.8l-.7 3.6 3.8-2.1c.7.1 1.4.2 2.1.2 4.700 0 8.5-3.300 8.5-7.500S16.700 3.600 12 3.600z\"/><path d=\"M9 10v2.200M12 8.500v5.200M15 10v2.200\"/>"},{"id":"vault","nom":"Vault de mémoire","type":"memoire","importance":3,"role":"Le second cerveau : des notes Markdown dans git, en 3 copies (ordinateur, GitHub, serveur). Tout agent commence par la carte du vault.","naissance":"2026-08-27","hebergement":"Ordinateur · GitHub · Serveur principal","techno":"Markdown · git · Obsidian","etat":"ok","itemsTitre":"Y aller","items":[{"nom":"Le vault sur GitHub","note":"la copie centrale ; sur l'ordinateur, il s'ouvre avec Obsidian"}],"icone":"<circle cx=\"12\" cy=\"5.8\" r=\"2.4\"/><circle cx=\"5.800\" cy=\"17.600\" r=\"2.400\"/><circle cx=\"18.200\" cy=\"17.600\" r=\"2.400\"/><path d=\"M10.800 7.900l-3.800 7.600M13.200 7.900l3.800 7.600M8.200 17.600h7.600\"/>"},{"id":"config-agents","nom":"Config des agents","type":"brique","importance":3,"role":"La sauvegarde de toute ta config Claude (consignes, réglages, skills) + le script qui réinstalle tout sur une machine neuve.","naissance":"2026-09-21","hebergement":"Ordinateur · GitHub","techno":"git · PowerShell","etat":"ok","itemsTitre":"Y aller","items":[{"nom":"Le dépôt de config","note":"toute la config des agents, versionnée"},{"nom":"Le dépôt de la carte","note":"cette carte et l'audit"}],"icone":"<path d=\"M12 3.500l8.500 4.300-8.500 4.300-8.500-4.300z\"/><path d=\"M3.500 12l8.500 4.300 8.500-4.300M3.500 16.200l8.500 4.300 8.500-4.300\"/>"},{"id":"skills","nom":"Skills","type":"brique","importance":2,"role":"Les savoir-faire que Claude charge à la demande : 10 skills, dont 6 écrits pour toi, et ce qui les fait tourner (l'inspecteur de skills, les déclencheurs du CLAUDE.md).","naissance":"2026-06-03","hebergement":"Ordinateur","techno":"Markdown · Python · hooks","etat":"ok","itemsTitre":"Ce qu'elle contient","items":[{"nom":"la sync de mémoire","note":"À toi. Pousse tout seul la mémoire des projets dans le vault (fin de réponse + tâche planifiée) ; refuse de pousser s'il voit un secret"},{"nom":"le régulateur de modèle","note":"À toi. Juge chaque demande et confie les tâches dures à un sous-agent Fable, au rythme de ton quota Fable hebdo"},{"nom":"la passation de contexte","note":"À toi. Écrit une fiche de passation juste avant la compaction automatique (vers 287k) et la relit après : plus besoin de /new. Depuis le 01/10, ne s'arrête plus de lui-même : une session endormie relit tout et continue, et /new n'est demandé que si la compaction automatique est coupée"},{"nom":"le scout de skills","note":"À toi. Au début d'un projet, cherche les skills et outils utiles, et passe chaque candidat à l'inspecteur de skills"},{"nom":"le contexte de projet","note":"À toi. Relit la mémoire d'un autre projet, la carte d'abord"},{"nom":"l'audit avant mise en ligne","note":"À toi. Checklist avant de mettre un projet en ligne"},{"nom":"l'inspecteur de skills","note":"Le programme NVIDIA qui inspecte un skill avant installation. Son score seul ne décide rien : sur tes skills, ses 41 alertes graves étaient toutes fausses"},{"nom":"déclencheurs","note":"Les consignes du CLAUDE.md global qui lancent le scout de skills, le dev paresseux et le conseil de cinq IA au bon moment"},{"nom":"le dev paresseux","note":"Dépôt public. Mode « dev senior paresseux » : réutilise l'existant avant d'écrire du nouveau code"},{"nom":"le conseil de cinq IA","note":"Dépôt public. Cinq conseillers débattent d'une grosse décision"},{"nom":"l'analyse de pubs","note":"Dépôt public. Diagnostic des campagnes Meta Ads"},{"nom":"l'anti-tics d'IA","note":"Dépôt public. Retire les tics d'écriture d'IA d'un texte"}],"itemsNote":"Quelques skills d'Anthropic (docx, pdf, pptx…) sont aussi synchronisés depuis claude.ai.","icone":"<path d=\"M11 3.500l1.900 5.100 5.100 1.900-5.100 1.900L11 17.500l-1.900-5.100L4 10.500l5.100-1.900z\"/><path d=\"M18 15l.800 2.200 2.200.800-2.200.800-.800 2.200-.800-2.200-2.200-.800 2.200-.800z\"/>"},{"id":"jauge-quota","nom":"Jauge de quota","type":"brique","importance":1,"role":"Ta statusline : elle te dit si tu consommes ton quota Claude hebdo trop vite.","naissance":"2026-08-27","hebergement":"Ordinateur","techno":"Python","etat":"ok","icone":"<path d=\"M4.600 17.500a8.500 8.500 0 1 1 14.800 0\"/><path d=\"M12 13.500l3.800-4.600\"/><circle cx=\"12\" cy=\"13.500\" r=\"1.300\"/>"},{"id":"garde-fous","nom":"Garde-fous","type":"brique","importance":2,"role":"La barrière qui empêche un texte piégé — page web, README d’un skill tiers — de devenir une commande sur tes serveurs. Tes clés SSH et tes identifiants Claude sont illisibles ; toute commande ssh ou scp et toute lecture d’un .env te demandent confirmation, même en mode auto.","naissance":"2026-09-21","hebergement":"Ordinateur","techno":"règles de permission · settings.json","etat":"ok","icone":"<rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"4.600\"/><circle cx=\"12\" cy=\"12\" r=\"2.600\"/>"},{"id":"sauvegarde-auto","nom":"Sauvegarde auto","type":"brique","importance":2,"role":"Garde la config des agents à jour sans que tu y penses : toutes les 6 heures, elle commite et pousse ce qui a changé dans ta config Claude. Si un secret apparaît dans ce qui allait partir, elle refuse et dit dans quel fichier.","naissance":"2026-09-21","hebergement":"Ordinateur","techno":"Python · tâche planifiée Windows","etat":"ok","icone":"<rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"4.600\"/><circle cx=\"12\" cy=\"12\" r=\"2.600\"/>"},{"id":"tdb-depots","nom":"Tableau de bord des dépôts","type":"brique","importance":1,"role":"Un tableau de bord local qui montre l'état de tous tes dépôts GitHub.","naissance":"2026-07-18","hebergement":"Ordinateur","techno":"Node · gh CLI","etat":"ok","icone":"<rect x=\"3.500\" y=\"3.500\" width=\"7\" height=\"9.500\" rx=\"2\"/><rect x=\"13.500\" y=\"3.500\" width=\"7\" height=\"5.500\" rx=\"2\"/><rect x=\"13.500\" y=\"11.500\" width=\"7\" height=\"9\" rx=\"2\"/><rect x=\"3.500\" y=\"15.500\" width=\"7\" height=\"5\" rx=\"2\"/>"},{"id":"app-todo","nom":"App to-do & agenda","type":"app","importance":3,"role":"Ton app de to-do, agenda et finances. Ton tout premier projet. L'agent de messagerie la pilote par API.","naissance":"2026-05-07","hebergement":"Vercel","techno":"Next.js · Supabase","etat":"ok","itemsTitre":"Y aller","items":[{"nom":"Ton tableau"},{"nom":"Ton dashboard","note":"agenda, finances, projets"},{"nom":"Cette carte","note":"la page Stack, réservée à ton compte"}],"icone":"<rect x=\"4\" y=\"3.500\" width=\"16\" height=\"17\" rx=\"3.400\"/><path d=\"M7.800 9l1.500 1.500L11.800 8M7.800 15l1.500 1.500 2.500-2.500M14.500 9.500h2.200M14.500 15.500h2.200\"/>"},{"id":"dashboard-ads","nom":"Dashboard Shopify × Meta","type":"app","importance":2,"role":"Tes stats pub × ventes × origine des visiteurs pour une boutique. L'agent de messagerie le lit pour te répondre.","naissance":"2026-09-06","hebergement":"Serveur principal","techno":"Python · SQLite","etat":"ok","itemsTitre":"Y aller","items":[{"nom":"Ouvrir le dashboard","note":"pub × ventes × origine des visiteurs"},{"nom":"Son code","note":"dépôt privé"}],"icone":"<path d=\"M4 20.500h16\"/><rect x=\"5.500\" y=\"11\" width=\"3\" height=\"6.500\" rx=\"1\"/><rect x=\"10.500\" y=\"5.500\" width=\"3\" height=\"12\" rx=\"1\"/><rect x=\"15.500\" y=\"8.500\" width=\"3\" height=\"9\" rx=\"1\"/>"},{"id":"bot-rdv","nom":"Bot de rendez-vous","type":"app","importance":2,"role":"Le bot Discord qui gère les prises de rendez-vous d'un client.","naissance":"2026-09-19","hebergement":"Serveur principal","techno":"Node 22 · SQLite · systemd","etat":"ok","icone":"<rect x=\"3.500\" y=\"5\" width=\"17\" height=\"15.500\" rx=\"3.200\"/><path d=\"M3.500 10h17M8 3v4M16 3v4M9 15.200l2 2 4-4\"/>"},{"id":"bot-trading","nom":"Bot de trading","type":"app","importance":2,"role":"Bot d'entraînement : il investit avec de l'argent fictif et mesure ses stratégies.","naissance":"2026-07-01","hebergement":"Serveur secondaire","techno":"Python · Postgres · Redis · Ollama · Docker","etat":"ok","itemsTitre":"Ses pièces","items":[{"nom":"Le schéma de sa stack","note":"comment ses briques s'enchaînent, et où en est le bot"},{"nom":"Le code","note":"dépôt privé — tout ce qui y est poussé part en production"},{"nom":"Le labo de stratégies","note":"dépôt privé"}],"itemsNote":"9 services et 8 minuteurs tournent en continu.","icone":"<path d=\"M3.500 17l5-5 3.500 3.500L20.500 7\"/><path d=\"M15.500 7h5v5\"/>"},{"id":"sites","nom":"Sites vitrines","type":"app","importance":2,"role":"Portfolios de clients, site perso, jeux à choix, refontes : les sites que tu livres.","naissance":"2026-05-18","hebergement":"Vercel","techno":"Next.js · React · Vite","etat":"ok","itemsTitre":"En ligne","items":[{"nom":"Portfolio vidéo","note":"livré à un client"},{"nom":"Site perso","note":"ton site"},{"nom":"Ton portfolio","note":"en ligne, mais le nom de domaine ne pointe plus dessus"},{"nom":"Portfolio d'une cliente"},{"nom":"Jeux à choix","note":"jeux à choix personnalisés"},{"nom":"Refonte d'un site de restaurant"},{"nom":"Frise Instagram","note":"sur l'ordinateur, pas publiée"}],"icone":"<rect x=\"3\" y=\"4.500\" width=\"18\" height=\"15\" rx=\"3.200\"/><path d=\"M3 9.300h18M6.300 6.900h.01M8.800 6.900h.01\"/>"},{"id":"outils-sourcing","nom":"Outils de sourcing","type":"app","importance":2,"role":"Carnet de voyage, annuaire de fournisseurs, app de langue, agent de réponse : tout ce qui sert ton sourcing.","naissance":"2026-08-27","hebergement":"Vercel","techno":"Next.js · React · Firebase","etat":"ok","itemsTitre":"Les outils","items":[{"nom":"Carnet de voyage","note":"en ligne"},{"nom":"Annuaire de fournisseurs","note":"en ligne — ton portfolio d'usines"},{"nom":"App de langue","note":"sur l'ordinateur, pas publiée"},{"nom":"Agent de réponse aux fournisseurs","note":"étude, pas publié"}],"icone":"<path d=\"M12 21s-6.500-5.600-6.500-10.500a6.500 6.500 0 0 1 13 0C18.500 15.400 12 21 12 21z\"/><circle cx=\"12\" cy=\"10.500\" r=\"2.300\"/>"},{"id":"boutiques","nom":"Boutiques","type":"app","importance":2,"role":"Les thèmes Shopify de tes deux boutiques, et le dossier de pilotage des pubs.","naissance":"2026-07-17","hebergement":"Shopify","techno":"Liquid · Dawn · Ride","etat":"ok","itemsTitre":"Les boutiques","items":[{"nom":"Première boutique","note":"les ceintures"},{"nom":"Seconde boutique","note":"les collants"}],"icone":"<path d=\"M5.600 8h12.800l1 12.500H4.600z\"/><path d=\"M9 8V7a3 3 0 0 1 6 0v1\"/>"},{"id":"labo","nom":"Le labo","type":"app","importance":1,"role":"Les expériences : partage de photos de repas, découpeur de paroles, calculateurs de pub, apprentissage du chinois, jeux…","naissance":"2026-05-18","hebergement":"Vercel · Ordinateur","techno":"un peu de tout","etat":"ok","itemsTitre":"Les expériences","items":[{"nom":"App de photos de repas","note":"en ligne"},{"nom":"Découpeur de paroles"},{"nom":"Tableau de bord d'un client"},{"nom":"Calculateur de rentabilité","note":"pour les pubs"},{"nom":"Prévisualisation de pubs"},{"nom":"Dashboard perso"},{"nom":"Un outil open source","note":"ton seul dépôt public"},{"nom":"Six autres expériences","note":"sur l'ordinateur, pas publiées"}],"icone":"<path d=\"M9.300 3.500h5.400M10.500 3.500v6L5 18.500a1.500 1.500 0 0 0 1.300 2.200h11.400a1.500 1.500 0 0 0 1.300-2.200L13.500 9.500v-6M7.900 15h8.200\"/>"},{"id":"github","nom":"GitHub","type":"socle","importance":3,"role":"Le coffre de tout ton code et du vault. C'est la pièce maîtresse : si tu perds ce compte, tu perds tout.","naissance":"2026-05-07","hebergement":"","techno":"un compte","etat":"ok","itemsTitre":"Y aller","items":[{"nom":"Tes dépôts","note":"42 dépôts, 41 privés"},{"nom":"Sécurité du compte"}],"icone":"<circle cx=\"7\" cy=\"5.500\" r=\"2.200\"/><circle cx=\"7\" cy=\"18.500\" r=\"2.200\"/><circle cx=\"17\" cy=\"8\" r=\"2.200\"/><path d=\"M7 7.700v8.600M17 10.200v.800a4 4 0 0 1-4 4H9.500\"/>"},{"id":"vercel","nom":"Vercel","type":"socle","importance":2,"role":"Met tes sites en ligne tout seul à chaque git push.","naissance":"2026-05-07","hebergement":"","techno":"plan Hobby","etat":"ok","itemsTitre":"Y aller","items":[{"nom":"Tes 15 projets"}],"icone":"<path d=\"M7 18.500a4.500 4.500 0 0 1-.6-8.960 6 6 0 0 1 11.700 1.100A4 4 0 0 1 17.500 18.500\"/><path d=\"M12 20.500v-7.500M9.200 15.600L12 12.800l2.800 2.800\"/>"},{"id":"serveur-1","nom":"Serveur principal","type":"socle","importance":3,"role":"Le serveur qui fait tourner l'agent de messagerie, le Dashboard Shopify × Meta, le bot de rendez-vous et une copie du vault.","naissance":"2026-08-08","hebergement":"chez un hébergeur","techno":"Linux · systemd","etat":"ok","icone":"<rect x=\"3.500\" y=\"4\" width=\"17\" height=\"7\" rx=\"2.300\"/><rect x=\"3.500\" y=\"13\" width=\"17\" height=\"7\" rx=\"2.300\"/><path d=\"M7 7.500h.01M7 16.500h.01M11 7.500h6M11 16.500h6\"/>"},{"id":"serveur-2","nom":"Serveur secondaire","type":"socle","importance":1,"role":"Le serveur dédié au bot de trading.","naissance":"2026-07-03","hebergement":"chez un hébergeur","techno":"Linux · Docker","etat":"ok","icone":"<path d=\"M12 3l8 4.500v9L12 21l-8-4.500v-9z\"/><path d=\"M4 7.500l8 4.500 8-4.500M12 12v9\"/>"},{"id":"bases","nom":"Bases de données","type":"socle","importance":2,"role":"Postgres pour l'app to-do, Redis pour les stats d'un site, Firestore pour deux petites apps.","naissance":"2026-05-07","hebergement":"cloud","techno":"Postgres · Redis · Firestore","etat":"ok","icone":"<ellipse cx=\"12\" cy=\"6.500\" rx=\"7.500\" ry=\"3\"/><path d=\"M4.500 6.500v11c0 1.700 3.400 3 7.500 3s7.500-1.300 7.500-3v-11M4.500 12c0 1.700 3.400 3 7.500 3s7.500-1.300 7.500-3\"/>"},{"id":"modeles","nom":"Modèles IA","type":"socle","importance":2,"role":"Les cerveaux loués : un modèle pour l'ordinateur, un autre pour l'agent de messagerie. Le but : pouvoir en changer sans rien casser.","naissance":"2026-05-07","hebergement":"API","techno":"Anthropic · Qwen","etat":"ok","icone":"<rect x=\"6.500\" y=\"6.500\" width=\"11\" height=\"11\" rx=\"2.600\"/><rect x=\"10\" y=\"10\" width=\"4\" height=\"4\" rx=\"1\"/><path d=\"M9.500 3.500v3M14.500 3.500v3M9.500 17.500v3M14.500 17.500v3M3.500 9.500h3M3.500 14.500h3M17.500 9.500h3M17.500 14.500h3\"/>"},{"id":"messageries","nom":"Messageries","type":"socle","importance":1,"role":"WhatsApp Business (l'agent de messagerie) et Discord (le bot de rendez-vous).","naissance":"2026-08-08","hebergement":"Meta · Discord","techno":"API","etat":"ok","icone":"<path d=\"M4 6.500A2.500 2.500 0 0 1 6.500 4h7A2.500 2.500 0 0 1 16 6.500v4a2.500 2.500 0 0 1-2.500 2.500H9l-3.500 2.800V13A2.500 2.500 0 0 1 4 10.500z\"/><path d=\"M18.600 9.600a2.500 2.500 0 0 1 1.400 2.200v3.700a2.500 2.500 0 0 1-1.500 2.300v2.400L15.500 18H12a2.500 2.500 0 0 1-1.900-.9\"/>"},{"id":"business","nom":"Shopify + Meta Ads","type":"socle","importance":2,"role":"Tes boutiques et ta régie pub : la source des chiffres du Dashboard Shopify × Meta.","naissance":"2026-07-17","hebergement":"Shopify · Meta","techno":"API","etat":"ok","icone":"<path d=\"M4 9.500l1.500-5h13l1.500 5a2.670 2.670 0 0 1-5.330 0 2.670 2.670 0 0 1-5.340 0A2.670 2.670 0 0 1 4 9.500z\"/><path d=\"M5.500 12.500v8h13v-8M10 20.500V16h4v4.500\"/>"},{"id":"coffre","nom":"Coffre à secrets","type":"socle","importance":3,"role":"Deux coffres, deux rôles. Le premier est la source unique des clés de tes applis : une clé saisie une fois, recopiée toute seule vers l'hébergeur et le serveur. Le second garde la copie de secours de tous tes fichiers sensibles et tes mots de passe.","naissance":"2026-09-24","hebergement":"deux services européens","techno":"coffre en ligne + copie de secours","etat":"ok","itemsTitre":"Ce qu'il contient","items":[{"nom":"Coffre principal","note":"la source des clés des applis"},{"nom":"Coffre de secours","note":"la copie de sauvegarde, rafraîchie après chaque changement de clé"}],"icone":"<rect x=\"5\" y=\"10.500\" width=\"14\" height=\"10\" rx=\"3\"/><path d=\"M8.500 10.500V8a3.500 3.500 0 0 1 7 0v2.500M12 14.500v2.200\"/>"}],"liens":[{"de":"ordinateur","vers":"agent-code","type":"pilotage","label":"une session par projet"},{"de":"telephone","vers":"agent-messagerie","type":"pilotage","label":"mémos vocaux WhatsApp"},{"de":"agent-messagerie","vers":"app-todo","type":"pilotage","label":"commande l'app · agenda · projets"},{"de":"modeles","vers":"agent-code","type":"pilotage","label":"Claude (Anthropic)"},{"de":"modeles","vers":"agent-messagerie","type":"pilotage","label":"Qwen, interchangeable"},{"de":"messageries","vers":"agent-messagerie","type":"pilotage","label":"WhatsApp"},{"de":"agent-code","vers":"vault","type":"memoire","label":"la sync de mémoire pousse la mémoire des projets"},{"de":"vault","vers":"agent-code","type":"memoire","label":"le contexte de projet relit un autre projet"},{"de":"agent-messagerie","vers":"vault","type":"memoire","label":"lit et écrit sa mémoire (sync 5 min)"},{"de":"app-todo","vers":"vault","type":"memoire","label":"export nocturne à 03:15"},{"de":"skills","vers":"agent-code","type":"pilotage","label":"savoir-faire à la demande ; Opus ou Fable, prompt par prompt"},{"de":"jauge-quota","vers":"agent-code","type":"donnees","label":"statusline : quota hebdo"},{"de":"jauge-quota","vers":"skills","type":"donnees","label":"quota Fable hebdo, pour le régulateur de modèle"},{"de":"config-agents","vers":"agent-code","type":"code","label":"sauvegarde et réinstalle la config"},{"de":"config-agents","vers":"github","type":"code","label":"dépôt privé"},{"de":"tdb-depots","vers":"github","type":"donnees","label":"lit l'état des dépôts"},{"de":"agent-code","vers":"github","type":"code","label":"git push"},{"de":"agent-messagerie","vers":"github","type":"code","label":"branches dédiées + PR, jamais main"},{"de":"github","vers":"vercel","type":"code","label":"déploiement automatique"},{"de":"vault","vers":"github","type":"code","label":"copie centrale"},{"de":"agent-code","vers":"serveur-1","type":"code","label":"ssh + scp, sur confirmation"},{"de":"agent-code","vers":"serveur-2","type":"code","label":"ssh + scp, sur confirmation"},{"de":"vercel","vers":"app-todo","type":"code","label":"héberge"},{"de":"vercel","vers":"sites","type":"code","label":"héberge"},{"de":"vercel","vers":"outils-sourcing","type":"code","label":"héberge"},{"de":"serveur-1","vers":"agent-messagerie","type":"code","label":"héberge"},{"de":"serveur-1","vers":"dashboard-ads","type":"code","label":"héberge"},{"de":"serveur-1","vers":"bot-rdv","type":"code","label":"héberge"},{"de":"serveur-2","vers":"bot-trading","type":"code","label":"héberge"},{"de":"agent-messagerie","vers":"dashboard-ads","type":"donnees","label":"commande le dashboard, lecture seule"},{"de":"app-todo","vers":"bases","type":"donnees","label":"Supabase"},{"de":"business","vers":"dashboard-ads","type":"donnees","label":"chiffres Meta Ads + Shopify"},{"de":"business","vers":"boutiques","type":"donnees","label":"thèmes en ligne"},{"de":"messageries","vers":"bot-rdv","type":"donnees","label":"Discord"},{"de":"coffre","vers":"ordinateur","type":"donnees","label":"régénère les .env"}]};</script>
+<script>
+(function(){
+"use strict";
+/* La page telle qu'ecrite, gardee avant le premier rendu : c'est le squelette du fichier exporte. */
+var SQUELETTE = document.body.cloneNode(true);
+/* ───────── Données (tout vient de stack-data.js) ───────── */
+var S = window.STACK || {};
+S.types = S.types || {}; S.typesDeLien = S.typesDeLien || {};
+S.modules = S.modules || []; S.liens = S.liens || [];
+var NS = "http://www.w3.org/2000/svg";
+var byId = {}; S.modules.forEach(function(m){ byId[m.id] = m; });
+var LIENS = S.liens.filter(function(l){ return byId[l.de] && byId[l.vers]; });
+var params = new URLSearchParams(location.search);
+/* Le plan vient du même fichier (bloc réécrit par l'agent de messagerie). Absent = le bouton Plan ne s'affiche pas. */
+var PLAN = window.PLAN && window.PLAN.taches && window.PLAN.taches.length ? window.PLAN : null;
+var URGENCES = {
+  urgent:     { nom: "Urgent",      desc: "à faire vite",           c: "var(--crit)" },
+  confort:    { nom: "Confort",     desc: "améliore ton quotidien", c: "var(--warn)" },
+  suggestion: { nom: "Suggestions", desc: "des idées à creuser",    c: "var(--accent)" }
+};
+
+/* ───────── Petits outils ───────── */
+function h(tag, a, kids){
+  var e = document.createElement(tag), k; a = a || {};
+  for (k in a){
+    if (a[k] == null) continue;
+    if (k === "text") e.textContent = a[k];
+    else if (k === "html") e.innerHTML = a[k];          /* uniquement pour nos pictogrammes internes */
+    else if (k === "style") e.style.cssText = a[k];
+    else e.setAttribute(k, a[k]);
+  }
+  (kids || []).forEach(function(c){ if (c != null) e.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+  return e;
+}
+function s(tag, a){ var e = document.createElementNS(NS, tag), k; for (k in (a || {})) e.setAttribute(k, a[k]); return e; }
+function pluriel(n, un, plusieurs){ return n + " " + (n > 1 ? plusieurs : un); }
+function couleurLien(type){ return "var(--l-" + String(type).replace(/[^a-z0-9-]/gi, "") + ", var(--accent))"; }
+
+/* ───────── Pictogrammes (trait fin, grille 24) : id → tracé, avec un générique de secours ───────── */
+var ICONS = { "_": '<rect x="4" y="4" width="16" height="16" rx="4.600"/><circle cx="12" cy="12" r="2.600"/>' };
+function iconHTML(m){
+  var glyphe = (m && typeof m.icone === "string" && m.icone.indexOf("<") >= 0) ? m.icone : (ICONS[m && m.id] || ICONS._);
+  return '<svg class="ico" viewBox="0 0 100 100" aria-hidden="true" focusable="false">'
+    + '<use href="#sq" class="ring" x="-9" y="-9" width="118" height="118"/><use href="#sq" class="plate"/>'
+    + '<g class="glyph" transform="translate(26 26) scale(2)">' + glyphe + '</g></svg>';
+}
+/* Squircle : une vraie superellipse (coins continus), pas un simple border-radius. */
+(function(){
+  var n = 5, N = 120, p = [], i, t, c, q;
+  for (i = 0; i < N; i++){
+    t = i / N * 2 * Math.PI; c = Math.cos(t); q = Math.sin(t);
+    p.push((i ? "L" : "M") + (50 + 49 * Math.sign(c) * Math.pow(Math.abs(c), 2 / n)).toFixed(2) + " " + (50 + 49 * Math.sign(q) * Math.pow(Math.abs(q), 2 / n)).toFixed(2));
+  }
+  document.getElementById("sqp").setAttribute("d", p.join("") + "Z");
+})();
+
+/* ───────── Dates, ancienneté, niveaux ───────── */
+var AUJ = new Date(); AUJ = new Date(AUJ.getFullYear(), AUJ.getMonth(), AUJ.getDate());
+function lireDate(v){ var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ""); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
+function dateLongue(d){ return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }).replace(/^1 /, "1er "); }
+function anciennete(m){
+  var de = lireDate(m.naissance); if (!de) return null;
+  var jours = Math.round((AUJ - de) / 864e5); if (jours < 0) return { futur: true, de: de, jours: jours };
+  var a = AUJ.getFullYear() - de.getFullYear(), mo = AUJ.getMonth() - de.getMonth(), j = AUJ.getDate() - de.getDate();
+  if (j < 0){ mo--; j += new Date(AUJ.getFullYear(), AUJ.getMonth(), 0).getDate(); }
+  if (mo < 0){ a--; mo += 12; }
+  var p = []; if (a) p.push(pluriel(a, "an", "ans")); if (mo) p.push(mo + " mois"); if (j) p.push(pluriel(j, "jour", "jours"));
+  var txt = !p.length ? "Depuis aujourd'hui" : p.length === 1 ? p[0] : p.slice(0, -1).join(", ") + " et " + p[p.length - 1];
+  return { de: de, jours: jours, txt: txt };
+}
+var NIVEAUX = [ { min: 0, nom: "Tout neuf" }, { min: 30, nom: "Installé" }, { min: 90, nom: "Rodé" }, { min: 180, nom: "Pilier" }, { min: 365, nom: "Vétéran" } ];
+function niveau(jours){
+  var i = 0; while (i < NIVEAUX.length - 1 && jours >= NIVEAUX[i + 1].min) i++;
+  var suiv = NIVEAUX[i + 1];
+  return { n: i + 1, nom: NIVEAUX[i].nom, reste: suiv ? suiv.min - jours : 0, part: suiv ? (jours - NIVEAUX[i].min) / (suiv.min - NIVEAUX[i].min) : 1 };
+}
+var ETATS = {
+  "ok":        { nom: "En ordre",     c: "var(--ok)" },
+  "attention": { nom: "À surveiller", c: "var(--warn)" },
+  "critique":  { nom: "Critique",     c: "var(--crit)" },
+  "a-venir":   { nom: "À venir",      c: "var(--todo)" }
+};
+function etatDe(m){ return ETATS[m.etat] || { nom: m.etat || "Inconnu", c: "var(--todo)" }; }
+var IMPORTANCE = { 3: "Pièce maîtresse", 1: "Secondaire" };
+
+/* Anneaux façon Forme : [{ r, part, c }] */
+function anneaux(taille, ep, liste){
+  var svg = s("svg", { viewBox: "0 0 " + taille + " " + taille, "aria-hidden": "true", focusable: "false" }), m = taille / 2;
+  liste.forEach(function(a){
+    var C = 2 * Math.PI * a.r;
+    var piste = s("circle", { cx: m, cy: m, r: a.r, fill: "none", "stroke-width": ep }); piste.style.stroke = a.c; piste.style.opacity = ".16";
+    svg.appendChild(piste);
+    if (a.part > 0){
+      var arc = s("circle", { cx: m, cy: m, r: a.r, fill: "none", "stroke-width": ep, "stroke-linecap": "round",
+        "stroke-dasharray": (Math.max(.001, Math.min(1, a.part)) * C).toFixed(2) + " " + C.toFixed(2), transform: "rotate(-90 " + m + " " + m + ")" });
+      arc.style.stroke = a.c; svg.appendChild(arc);
+    }
+  });
+  return svg;
+}
+/* ───────── État de l'interface ───────── */
+var st = { filtre: "tout", survol: null, clavier: null, epingle: null, solo: null, plan: false };
+function actif(){ return st.survol || st.clavier || st.epingle; }
+function liensVisibles(){ return LIENS.filter(function(l){ return st.filtre === "tout" || l.type === st.filtre; }); }
+
+var map = document.getElementById("map"), base = document.getElementById("base"), hot = document.getElementById("hot");
+var insp = document.getElementById("insp"), seg = document.getElementById("seg"), thumb = document.getElementById("thumb");
+var tiles = {}, rangees = [], geo = [], basePaths = [];
+
+/* ───────── Mode compact (tablette, téléphone) : l'inspecteur devient une feuille à trois crans ───────── */
+var compact = window.matchMedia ? matchMedia("(max-width:1100px)") : { matches: false };
+var survolPossible = !window.matchMedia || matchMedia("(hover: hover)").matches;   /* au doigt, pas de survol : on touche pour ouvrir */
+var reduit = !!window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+var feuille = document.getElementById("feuille"), grab = document.getElementById("grab"), barreHaut = document.querySelector(".top");
+var etatFeuille = "fermee", resumeOuvert = false;
+function hauteurFeuille(e){ var H = window.innerHeight; return e === "coup-d-oeil" ? 112 : e === "ouverte" ? Math.round(H * .58) : e === "pleine" ? H - 76 : 0; }
+function poserFeuille(e){
+  etatFeuille = e;
+  if (!compact.matches){ document.documentElement.style.removeProperty("--sheet-h"); return; }
+  feuille.setAttribute("data-feuille", e);
+  document.documentElement.style.setProperty("--sheet-h", hauteurFeuille(e) + "px");
+  grab.setAttribute("aria-expanded", e === "ouverte" || e === "pleine" ? "true" : "false");
+}
+/* La tuile choisie doit rester visible entre la barre du haut et la feuille. */
+function assurerVisible(id, toutDeSuite){
+  var t = tiles[id]; if (!t || !compact.matches) return;
+  requestAnimationFrame(function(){
+    var r = t.el.getBoundingClientRect(), haut = barreHaut.getBoundingClientRect().bottom + 10, bas = window.innerHeight - hauteurFeuille(etatFeuille) - 10;
+    if (r.top < haut || r.bottom > bas) window.scrollTo({ top: Math.max(0, window.scrollY + r.top - haut - 14), behavior: toutDeSuite || reduit ? "auto" : "smooth" });
+  });
+}
+
+/* ───────── En-tête ───────── */
+document.getElementById("owner").textContent = S.proprietaire || "";
+if (S.proprietaire) document.title = "Stack technique · " + S.proprietaire;
+var dMaj = lireDate(S.maj);
+document.getElementById("maj").textContent = dMaj ? "Mise à jour le " + dateLongue(dMaj) : "";
+
+/* Filtre segmenté : « Tout » + un segment par type de lien (libellé court = premier mot du nom) */
+var segBtns = [];
+[["tout", { nom: "Tout", description: "Tous les liens" }]].concat(Object.keys(S.typesDeLien).map(function(k){ return [k, S.typesDeLien[k]]; })).forEach(function(e){
+  var id = e[0], t = e[1], court = String(t.nom || id).split(" ")[0];
+  var b = h("button", { type: "button", role: "radio", "aria-checked": "false", tabindex: "-1", title: (t.nom || id) + (t.description ? " : " + t.description : ""), "data-f": id },
+    [ id === "tout" ? null : h("span", { "class": "sw", style: "--c:" + couleurLien(id) }), court ]);
+  b.addEventListener("click", function(){ choisirFiltre(id); });
+  seg.appendChild(b); segBtns.push(b);
+});
+seg.addEventListener("keydown", function(ev){
+  var i = segBtns.indexOf(document.activeElement), d = ev.key === "ArrowRight" ? 1 : ev.key === "ArrowLeft" ? -1 : 0;
+  if (i < 0 || !d) return;
+  ev.preventDefault(); var n = segBtns[(i + d + segBtns.length) % segBtns.length]; n.focus(); choisirFiltre(n.getAttribute("data-f"));
+});
+function placerCurseur(){
+  segBtns.forEach(function(b){
+    var on = b.getAttribute("data-f") === st.filtre;
+    b.setAttribute("aria-checked", on ? "true" : "false"); b.tabIndex = on ? 0 : -1;
+    if (on){ thumb.style.width = b.offsetWidth + "px"; thumb.style.transform = "translateX(" + b.offsetLeft + "px)"; }
+  });
+}
+function choisirFiltre(id){
+  st.filtre = (id === "tout" || S.typesDeLien[id]) ? id : "tout";
+  placerCurseur(); peindre(true); ecrireURL();
+}
+
+/* ───────── Couches et tuiles ───────── */
+var ordreTypes = Object.keys(S.types);
+S.modules.forEach(function(m){ if (ordreTypes.indexOf(m.type) < 0) ordreTypes.push(m.type); });   /* type inconnu : sa propre couche, en bas */
+ordreTypes.forEach(function(type, r){
+  var mods = S.modules.filter(function(m){ return m.type === type; }); if (!mods.length) return;
+  var T = S.types[type] || { nom: type, description: "" };
+  var zone = h("div", { "class": "tiles", role: "group", "aria-label": T.nom });
+  var ligne = [];
+  mods.forEach(function(m){
+    var e = etatDe(m), nb = LIENS.filter(function(l){ return l.de === m.id || l.vers === m.id; }).length;
+    var imp = m.importance === 3 || m.importance === 1 ? m.importance : 2;
+    var nom = h("span", { "class": "name", text: m.nom });
+    var wrap = h("span", { "class": "ico-wrap", html: iconHTML(m) });
+    if (m.etat === "attention" || m.etat === "critique") wrap.appendChild(h("span", { "class": "badge", style: "--c:" + e.c }));
+    var b = h("button", { type: "button", "class": "tile imp-" + imp + " etat-" + String(m.etat).replace(/[^a-z-]/g, ""), "data-id": m.id, "aria-pressed": "false",
+      "aria-label": m.nom + ", " + T.nom + ". " + e.nom + ". " + pluriel(nb, "lien", "liens") + "." }, [wrap, nom]);
+    zone.appendChild(b); tiles[m.id] = { el: b, nom: nom, ico: wrap, rang: rangees.length }; ligne.push(b);
+  });
+  rangees.push(ligne);
+  map.appendChild(h("section", { "class": "row" }, [
+    h("div", { "class": "row-head", title: T.description || "" }, [ h("div", { "class": "row-name", text: T.nom }), h("div", { "class": "row-count", text: pluriel(mods.length, "module", "modules") }) ]),
+    zone ]));
+});
+
+/* ───────── Géométrie des liens, lue dans le DOM ───────── */
+function mesurer(){
+  var mr = map.getBoundingClientRect(), boite = {}, fentes = {};
+  S.modules.forEach(function(m){
+    var t = tiles[m.id]; if (!t) return;
+    var a = t.ico.getBoundingClientRect(), n = t.nom.getBoundingClientRect();   /* l'icône, pas le bouton : sa taille change entre ordinateur et téléphone */
+    boite[m.id] = { cx: a.left + a.width / 2 - mr.left, haut: a.top - mr.top - 7, bas: Math.max(a.bottom, n.bottom) - mr.top + 9, rang: t.rang };
+  });
+  var bouts = LIENS.map(function(l, i){
+    var A = boite[l.de], B = boite[l.vers], ca, cb;
+    if (A.rang < B.rang){ ca = "bas"; cb = "haut"; } else if (A.rang > B.rang){ ca = "haut"; cb = "bas"; } else { ca = cb = "haut"; }
+    var e = { i: i, ca: ca, cb: cb, memeRang: A.rang === B.rang };
+    [[l.de, ca, "1", B.cx], [l.vers, cb, "2", A.cx]].forEach(function(q){
+      var k = q[0] + "\n" + q[1]; (fentes[k] = fentes[k] || { id: q[0], cote: q[1], l: [] }).l.push({ e: e, bout: q[2], ox: q[3] });
+    });
+    return e;
+  });
+  /* Plusieurs liens sur un même bord : on les étale en éventail, triés selon la position de l'autre extrémité. */
+  Object.keys(fentes).forEach(function(k){
+    var f = fentes[k], bx = boite[f.id], n = f.l.length, large = Math.min(46, (n - 1) * 9);
+    f.l.sort(function(p, q){ return p.ox - q.ox || p.e.i - q.e.i; });
+    f.l.forEach(function(p, j){ p.e["x" + p.bout] = bx.cx + (n > 1 ? (j / (n - 1) - .5) * large : 0); p.e["y" + p.bout] = bx[f.cote]; });
+  });
+  geo = bouts.map(function(e){
+    var x1 = +e.x1.toFixed(1), y1 = +e.y1.toFixed(1), x2 = +e.x2.toFixed(1), y2 = +e.y2.toFixed(1), d, k;
+    if (e.memeRang){ k = Math.min(34, 15 + Math.abs(x2 - x1) * .09); d = "M" + x1 + " " + y1 + "C" + x1 + " " + (y1 - k) + " " + x2 + " " + (y2 - k) + " " + x2 + " " + y2; }
+    else { k = Math.max(18, Math.abs(y2 - y1) * .5) * (y2 > y1 ? 1 : -1); d = "M" + x1 + " " + y1 + "C" + x1 + " " + (y1 + k) + " " + x2 + " " + (y2 - k) + " " + x2 + " " + y2; }
+    return { d: d, x1: x1, y1: y1, x2: x2, y2: y2, sens: e.cb === "haut" ? 1 : -1 };
+  });
+  base.textContent = "";
+  basePaths = geo.map(function(g){ var p = s("path", { d: g.d }); base.appendChild(p); return p; });
+}
+
+/* ───────── Peinture : tout découle de l'état ───────── */
+var cleHot = "";
+function peindre(force, instantane){
+  var id = actif(), vis = liensVisibles(), forts, allumes = {};
+  if (id){ forts = vis.filter(function(l){ return l.de === id || l.vers === id; }); allumes[id] = 1; }
+  else forts = st.filtre === "tout" ? [] : vis;
+  forts.forEach(function(l){ allumes[l.de] = 1; allumes[l.vers] = 1; });
+  var attenuer = !!id || st.filtre !== "tout";
+  map.classList.toggle("dimming", attenuer);
+  S.modules.forEach(function(m){
+    var t = tiles[m.id]; if (!t) return;
+    t.el.classList.toggle("on", !attenuer || !!allumes[m.id]);
+    t.el.classList.toggle("is-active", id === m.id);
+    t.el.classList.toggle("is-pinned", st.epingle === m.id);
+    t.el.setAttribute("aria-pressed", st.epingle === m.id ? "true" : "false");
+  });
+  base.classList.toggle("faint", forts.length > 0 || !!id);
+  LIENS.forEach(function(l, i){ if (basePaths[i]) basePaths[i].classList.toggle("off", vis.indexOf(l) < 0 || forts.indexOf(l) >= 0); });
+
+  var cle = (id || "") + "|" + st.filtre;
+  if (force || cle !== cleHot){
+    cleHot = cle; hot.textContent = ""; hot.setAttribute("class", "hot" + (instantane ? " instant" : ""));
+    var pas = forts.length > 10 ? 12 : 22;
+    forts.forEach(function(l, n){
+      var i = LIENS.indexOf(l), g = geo[i]; if (!g) return;
+      var G = s("g", { "data-i": i }); G.style.setProperty("--c", couleurLien(l.type));
+      var p = s("path", { d: g.d, pathLength: 1, "class": "l" }); p.style.animationDelay = n * pas + "ms";
+      var tip = s("path", { "class": "tip", d: "M" + (g.x2 - 4) + " " + (g.y2 - 5 * g.sens) + "L" + g.x2 + " " + g.y2 + "L" + (g.x2 + 4) + " " + (g.y2 - 5 * g.sens) });
+      tip.style.animationDelay = (n * pas + 330) + "ms";
+      var dot = s("circle", { "class": "dot", cx: g.x1, cy: g.y1, r: 2.3 }); dot.style.animationDelay = n * pas + "ms";
+      G.appendChild(p); G.appendChild(dot); G.appendChild(tip); hot.appendChild(G);
+    });
+    dessinerInspecteur(id);
+  }
+  hot.classList.toggle("solo", st.solo != null);
+  Array.prototype.forEach.call(hot.children, function(G){ G.classList.toggle("is-solo", +G.getAttribute("data-i") === st.solo); });
+}
+/* ───────── Inspecteur ───────── */
+function titreSection(txt, droite){ return h("div", { "class": "sec" }, [ h("span", { text: txt }), droite ? h("em", { text: droite }) : null ]); }
+function jauge(opts){
+  var e = h(opts.clic ? "button" : "div", { "class": "gauge", type: opts.clic ? "button" : null, title: opts.titre || null }, [
+    h("span", { "class": "lab" }, [ opts.c ? h("i", { style: "--c:" + opts.c }) : null, h("span", { text: opts.nom }) ]),
+    h("span", { "class": "bar" }, [ h("u", { style: "width:" + Math.round(opts.part * 100) + "%;" + (opts.c ? "--c:" + opts.c : "") }) ]),
+    h("b", { text: String(opts.n) }) ]);
+  if (opts.clic) e.addEventListener("click", opts.clic);
+  return e;
+}
+function ligneModule(m, sousTitre, c, surClic, iLien){
+  var b = h("button", { type: "button", "class": "lk" }, [ h("i", { style: "--c:" + c }), h("span", {}, [ h("b", { text: m.nom }), h("span", { text: sousTitre }) ]) ]);
+  b.addEventListener("click", surClic);
+  if (iLien != null){
+    var on = function(){ st.solo = iLien; peindre(); }, off = function(){ st.solo = null; peindre(); };
+    b.addEventListener("mouseenter", on); b.addEventListener("focus", on); b.addEventListener("mouseleave", off); b.addEventListener("blur", off);
+  }
+  return b;
+}
+
+/* Une ligne de liste : un lien à ouvrir quand c'est publié, sinon une simple ligne. */
+var FLECHE = '<svg class="ext" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 4.6h5.4V10M19 5.2l-8.4 8.4M17 14.2v4.4a1.8 1.8 0 0 1-1.8 1.8H5.9a1.8 1.8 0 0 1-1.8-1.8V9.3a1.8 1.8 0 0 1 1.8-1.8h4.4"/></svg>';
+function ligneItem(it){
+  var dedans = [ h("i", { style: "--c:" + (it.url ? "var(--accent)" : "var(--text-3)") }),
+                 h("span", {}, [ h("b", { text: it.nom }), it.note ? h("span", { text: it.note }) : null ]) ];
+  if (!it.url) return h("div", { "class": "lk fixe" }, dedans);
+  return h("a", { "class": "lk ouvrable", href: it.url, target: "_blank", rel: "noopener noreferrer", title: it.url },
+    dedans.concat([ h("span", { style: "display:flex;align-self:center", html: FLECHE }) ]));
+}
+
+/* ───────── Plan d'action (bloc PLAN de stack-data.js) ───────── */
+function tachesTriees(u, faites){
+  return PLAN.taches.filter(function(t){
+    return (t.urgence || "suggestion") === u && (faites ? t.etat === "fait" : t.etat !== "fait");
+  }).sort(function(p, q){ return (q.poids || 0) - (p.poids || 0); });
+}
+function ligneTache(t){
+  var U = URGENCES[t.urgence] || URGENCES.suggestion, fait = t.etat === "fait";
+  var meta = h("div", { "class": "meta" });
+  if (t.etat === "en-cours") meta.appendChild(h("span", { "class": "chip", text: "en cours" }));
+  if (t.duree && !fait) meta.appendChild(h("span", { "class": "chip", text: t.duree }));
+  var ech = lireDate(t.echeance);
+  if (ech && !fait){
+    var j = Math.round((ech - AUJ) / 864e5);
+    meta.appendChild(h("span", { "class": "chip date", text: j < 0 ? "en retard" : j === 0 ? "aujourd'hui" : "dans " + pluriel(j, "jour", "jours") }));
+  }
+  (t.tags || []).forEach(function(x){ meta.appendChild(h("span", { "class": "chip", text: x })); });
+  var aj = lireDate(t.ajoute);
+  /* « nouveau » : posé par l'agent de messagerie quand il ajoute une tâche, et retiré par lui quelques jours après. */
+  if (t.nouveau && !fait) meta.appendChild(h("span", { "class": "chip neuf", text: "nouveau" }));
+  if (t.module && byId[t.module]) meta.appendChild(h("span", { "class": "chip", text: byId[t.module].nom }));
+
+  var d = h("details", { "class": "tache", "data-etat": t.etat || "a-faire" });
+  d.appendChild(h("summary", {}, [
+    h("span", { "class": "urg", style: "--c:" + (fait ? "var(--ok)" : U.c) }),
+    h("div", {}, [ h("div", { "class": "t", text: t.titre }), meta ]) ]));
+  var corps = h("div", { "class": "corps" });
+  if (t.pourquoi) corps.appendChild(h("p", { text: t.pourquoi }));
+  if (t.comment && t.comment.length){
+    var ol = h("ol"); t.comment.forEach(function(x){ ol.appendChild(h("li", { text: x })); }); corps.appendChild(ol);
+  }
+  if (t.module && byId[t.module]){
+    var b = h("button", { type: "button", "class": "voir", text: "Voir " + byId[t.module].nom + " sur la carte" });
+    b.addEventListener("click", function(){ epingler(t.module); });
+    corps.appendChild(b);
+  }
+  if (t.source || aj) corps.appendChild(h("p", { "class": "src",
+    text: (aj ? (fait ? "Fait vers le " : "Ajouté le ") + dateLongue(aj) : "") + (t.source ? (aj ? " · " : "") + t.source : "") }));
+  d.appendChild(corps);
+  return d;
+}
+function dessinerPlan(){
+  var restant = PLAN.taches.filter(function(t){ return t.etat !== "fait"; }).length, urgents = tachesTriees("urgent").length;
+  insp.appendChild(h("div", { "class": "eyebrow", text: "Plan d'action" }));
+  insp.appendChild(h("h2", { "class": "i-title", text: restant + (restant > 1 ? " choses à faire" : " chose à faire") }));
+  var dm = lireDate(PLAN.maj);
+  insp.appendChild(h("p", { "class": "i-sub", text:
+    (dm ? "Mis à jour le " + dateLongue(dm) : "Plan") + (PLAN.par ? " par " + PLAN.par : "") + "."
+    + (urgents ? " " + (urgents > 1 ? urgents + " points urgents" : "1 point urgent") + ", du plus important au moins important." : "") }));
+  Object.keys(URGENCES).forEach(function(u){
+    var liste = tachesTriees(u); if (!liste.length) return;
+    insp.appendChild(titreSection(URGENCES[u].nom + " · " + URGENCES[u].desc, String(liste.length)));
+    var c = h("div", { "class": "card" }); liste.forEach(function(t){ c.appendChild(ligneTache(t)); }); insp.appendChild(c);
+  });
+  var faites = PLAN.taches.filter(function(t){ return t.etat === "fait"; })
+    .sort(function(p, q){ return String(q.ajoute || "").localeCompare(String(p.ajoute || "")); });
+  if (faites.length){
+    insp.appendChild(titreSection("Déjà fait", String(faites.length)));
+    var cf = h("div", { "class": "card" }); faites.forEach(function(t){ cf.appendChild(ligneTache(t)); }); insp.appendChild(cf);
+  }
+  if (PLAN.note) insp.appendChild(h("p", { "class": "hint", text: PLAN.note }));
+}
+
+var vivant = false;   /* pas de fondu tant que tu n'as rien touché : l'état initial (et la vignette) s'affiche net */
+["pointermove", "keydown", "pointerdown"].forEach(function(ev){ document.addEventListener(ev, function(){ vivant = true; }, { once: true, passive: true }); });
+function dessinerInspecteur(id){
+  insp.textContent = ""; insp.scrollTop = 0; insp.classList.toggle("still", !vivant);
+  var m = id && byId[id];
+  if (m) dessinerModule(m); else if (st.plan && PLAN) dessinerPlan(); else dessinerResume();
+}
+
+function dessinerResume(){
+  insp.appendChild(h("div", { "class": "eyebrow", text: "Vue d'ensemble" }));
+  insp.appendChild(h("h2", { "class": "i-title", text: pluriel(S.modules.length, "module", "modules") + ", " + pluriel(LIENS.length, "lien", "liens") }));
+  if (st.filtre !== "tout" && S.typesDeLien[st.filtre])
+    insp.appendChild(h("p", { "class": "i-sub", text: "Filtre « " + S.typesDeLien[st.filtre].nom + " » : " + (S.typesDeLien[st.filtre].description || "") }));
+  else insp.appendChild(h("p", { "class": "i-sub", text: "Tout ce qui tourne pour toi, et ce qui tient quoi." + (compact.matches && dMaj ? " Mise à jour le " + dateLongue(dMaj) + "." : "") }));
+
+  /* États : anneaux concentriques + légende */
+  var cles = Object.keys(ETATS), total = S.modules.length || 1, rayons = [47, 37, 27, 17];
+  var compte = {}; cles.forEach(function(k){ compte[k] = S.modules.filter(function(x){ return x.etat === k; }).length; });
+  var leg = h("div");
+  cles.forEach(function(k){ leg.appendChild(h("div", { "class": "leg" }, [ h("i", { style: "--c:" + ETATS[k].c }), h("span", { text: ETATS[k].nom }), h("b", { text: String(compte[k]) }) ])); });
+  insp.appendChild(h("div", { "class": "card" }, [ h("div", { "class": "rings" }, [
+    anneaux(112, 8, cles.map(function(k, i){ return { r: rayons[i], part: compte[k] / total, c: ETATS[k].c }; })), leg ]) ]));
+
+  /* Le plan : une ligne pour l'ouvrir */
+  if (PLAN){
+    var nU = tachesTriees("urgent").length, nR = PLAN.taches.filter(function(t){ return t.etat !== "fait"; }).length;
+    var bp = h("button", { type: "button", "class": "lk", style: "padding:11px 14px" }, [
+      h("i", { style: "--c:" + (nU ? "var(--crit)" : "var(--accent)"), }),
+      h("span", {}, [ h("b", { text: "Plan d'action" }),
+        h("span", { text: nR + " à faire" + (nU ? ", dont " + (nU > 1 ? nU + " urgents" : "1 urgent") : "") }) ]) ]);
+    bp.addEventListener("click", function(){ ouvrirPlan(); });
+    insp.appendChild(titreSection("Améliorer la stack")); insp.appendChild(h("div", { "class": "card" }, [bp]));
+  }
+
+  /* Ce qui demande ton attention, du plus grave au moins grave : un toucher ouvre la fiche */
+  var ordreAlerte = ["critique", "attention", "a-venir"];
+  var alertes = S.modules.filter(function(x){ return ordreAlerte.indexOf(x.etat) >= 0; }).sort(function(p, q){ return ordreAlerte.indexOf(p.etat) - ordreAlerte.indexOf(q.etat); });
+  if (alertes.length){
+    var carteAl = h("div", { "class": "card" });
+    alertes.forEach(function(x){ carteAl.appendChild(ligneModule(x, x.etatNote || etatDe(x).nom, etatDe(x).c, function(){ epingler(x.id); })); });
+    insp.appendChild(titreSection("Demandent ton attention", String(alertes.length))); insp.appendChild(carteAl);
+  }
+
+  /* Modules par couche */
+  var parType = rangees.map(function(l){ return l.length; }), max = Math.max.apply(null, parType.concat([1]));
+  var carte = h("div", { "class": "card" }), r = 0;
+  ordreTypes.forEach(function(type){
+    var n = S.modules.filter(function(x){ return x.type === type; }).length; if (!n) return;
+    var T = S.types[type] || { nom: type };
+    carte.appendChild(jauge({ nom: T.nom, n: n, part: n / max, titre: T.description })); r++;
+  });
+  insp.appendChild(titreSection("Modules par couche")); insp.appendChild(carte);
+
+  /* Liens par type (cliquables : même effet que le filtre du haut) */
+  var carteL = h("div", { "class": "card" }), maxL = 1;
+  Object.keys(S.typesDeLien).forEach(function(k){ maxL = Math.max(maxL, LIENS.filter(function(l){ return l.type === k; }).length); });
+  Object.keys(S.typesDeLien).forEach(function(k){
+    var n = LIENS.filter(function(l){ return l.type === k; }).length;
+    carteL.appendChild(jauge({ nom: S.typesDeLien[k].nom, n: n, part: n / maxL, c: couleurLien(k), titre: S.typesDeLien[k].description,
+      clic: function(){ choisirFiltre(st.filtre === k ? "tout" : k); } }));
+  });
+  insp.appendChild(titreSection("Liens par type")); insp.appendChild(carteL);
+
+  /* Ancienneté : le doyen et le dernier arrivé */
+  var ages = S.modules.map(function(x){ return { m: x, a: anciennete(x) }; }).filter(function(x){ return x.a && !x.a.futur; });
+  if (ages.length){
+    var doyen = ages.reduce(function(p, q){ return q.a.jours > p.a.jours ? q : p; }), cadet = ages.reduce(function(p, q){ return q.a.jours <= p.a.jours ? q : p; });
+    var carteA = h("div", { "class": "card" });
+    [[doyen, "Le doyen"], [cadet, "Le dernier arrivé"]].forEach(function(x){
+      carteA.appendChild(ligneModule(x[0].m, x[1] + " · " + x[0].a.txt.replace(/^Depuis /, ""), "var(--text-3)", function(){ epingler(x[0].m.id); }));
+    });
+    insp.appendChild(titreSection("Ancienneté")); insp.appendChild(carteA);
+  }
+  if (compact.matches) insp.appendChild(h("p", { "class": "hint", text: "Touche une tuile pour ouvrir sa fiche et voir ses liens. Dans une fiche, touche un lien pour sauter au module d'en face. Tire la poignée vers le bas pour garder la carte sous les yeux." }));
+  else insp.appendChild(h("p", { "class": "hint" }, [ "Survole une tuile pour suivre ses liens, clique pour l'épingler. ", h("kbd", { text: "Échap" }), " pour revenir ici." ]));
+}
+
+function dessinerModule(m){
+  var T = S.types[m.type] || { nom: m.type }, e = etatDe(m), a = anciennete(m);
+  var imp = m.importance === 3 || m.importance === 1 ? m.importance : 2;
+  var fermer = st.epingle === m.id ? h("button", { type: "button", "class": "close", "aria-label": "Revenir à la vue d'ensemble", title: "Revenir à la vue d'ensemble",
+    html: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8"/></svg>' }) : h("span");
+  if (st.epingle === m.id) fermer.addEventListener("click", function(){ epingler(null); });
+  insp.appendChild(h("div", { "class": "i-head tile imp-" + imp + " etat-" + String(m.etat).replace(/[^a-z-]/g, "") + " on", style: "cursor:default" }, [
+    h("span", { "class": "ico-wrap", style: "transform:none", html: iconHTML(m) }),
+    h("div", {}, [ h("h2", { "class": "i-title", text: m.nom }), h("p", { "class": "i-sub", style: "margin-top:2px", text: T.nom + (IMPORTANCE[m.importance] ? " · " + IMPORTANCE[m.importance] : "") }) ]),
+    fermer ]));
+  if (m.role) insp.appendChild(h("p", { "class": "i-role", text: m.role }));
+
+  /* En service depuis : âge + niveau d'ancienneté */
+  var bloc;
+  if (a && !a.futur){
+    var nv = niveau(a.jours);
+    var ring = h("div", { "class": "age-ring" }, [ anneaux(52, 5, [{ r: 22.5, part: Math.max(nv.part, .04), c: "var(--accent)" }]), h("b", { text: String(nv.n) }) ]);
+    ring.setAttribute("title", "Niveau " + nv.n + " sur " + NIVEAUX.length);
+    bloc = h("div", { "class": "age" }, [ ring, h("div", {}, [
+      h("span", { text: "En service depuis", style: "margin:0 0 1px" }), h("strong", { text: a.txt.replace(/^Depuis a/, "A") }),
+      h("span", { text: "Niveau " + nv.n + " · " + nv.nom + (nv.reste ? " · niveau " + (nv.n + 1) + " dans " + pluriel(nv.reste, "jour", "jours") : "") }) ]) ]);
+  } else {
+    bloc = h("div", { "class": "age" }, [ h("div", { "class": "age-ring" }, [ anneaux(52, 5, [{ r: 22.5, part: 0, c: "var(--todo)" }]), h("b", { text: "0", style: "color:var(--text-2)" }) ]), h("div", {}, [
+      h("span", { text: "En service depuis", style: "margin:0 0 1px" }), h("strong", { text: a && a.futur ? "Prévu le " + dateLongue(a.de) : "Pas encore en service" }),
+      h("span", { text: "Niveau 0 · À construire" }) ]) ]);
+  }
+  insp.appendChild(h("div", { "class": "card" }, [bloc]));
+  if (a && !a.futur) bloc.lastChild.appendChild(h("span", { text: "Né le " + dateLongue(a.de), style: "margin-top:1px" }));
+
+  /* Fiche */
+  var fiche = h("div", { "class": "card" });
+  if (m.hebergement) fiche.appendChild(h("div", { "class": "kv" }, [ h("span", { text: "Hébergement" }), h("span", { text: m.hebergement }) ]));
+  if (m.techno) fiche.appendChild(h("div", { "class": "kv" }, [ h("span", { text: "Techno" }), h("span", { text: m.techno }) ]));
+  fiche.appendChild(h("div", { "class": "kv" }, [ h("span", { text: "État" }), h("span", {}, [ h("span", { "class": "pill" }, [ h("i", { style: "--c:" + e.c }), e.nom ]) ]),
+    m.etatNote ? h("span", { "class": "note", text: m.etatNote }) : null ]));
+  insp.appendChild(fiche);
+
+  /* Ce qu'il contient : la liste, avec un lien quand c'est publié */
+  if (m.items && m.items.length){
+    insp.appendChild(titreSection(m.itemsTitre || "Ce qu'il contient", String(m.items.length)));
+    var carteI = h("div", { "class": "card" });
+    m.items.forEach(function(it){ carteI.appendChild(ligneItem(it)); });
+    insp.appendChild(carteI);
+    if (m.itemsNote) insp.appendChild(h("p", { "class": "hint", style: "margin:9px 6px 0", text: m.itemsNote }));
+  }
+
+  /* Reçoit de / Envoie vers */
+  [["Reçoit de", "vers", "de"], ["Envoie vers", "de", "vers"]].forEach(function(x){
+    var liste = LIENS.filter(function(l){ return l[x[1]] === m.id; });
+    insp.appendChild(titreSection(x[0], String(liste.length)));
+    var carte = h("div", { "class": "card" });
+    if (!liste.length) carte.appendChild(h("div", { "class": "empty", text: x[1] === "vers" ? "Rien n'arrive ici pour l'instant." : "Ne pousse rien ailleurs pour l'instant." }));
+    liste.forEach(function(l){
+      var autre = byId[l[x[2]]], horsFiltre = st.filtre !== "tout" && l.type !== st.filtre;
+      var b = ligneModule(autre, l.label || (S.typesDeLien[l.type] || {}).nom || "", couleurLien(l.type), function(){ epingler(autre.id); }, horsFiltre ? null : LIENS.indexOf(l));
+      b.title = ((S.typesDeLien[l.type] || {}).nom || l.type) + (horsFiltre ? " (masqué par le filtre)" : "");
+      if (horsFiltre) b.style.opacity = ".5";
+      carte.appendChild(b);
+    });
+    insp.appendChild(carte);
+  });
+}
+
+/* ───────── Interactions ───────── */
+var minuterie = null;
+function epingler(id){
+  st.epingle = id && byId[id] ? id : null; st.survol = null; st.solo = null; st.plan = false;
+  if (compact.matches){
+    if (st.epingle){ resumeOuvert = false; if (etatFeuille === "fermee" || etatFeuille === "coup-d-oeil") poserFeuille("ouverte"); }
+    else if (!resumeOuvert) poserFeuille("fermee");
+  }
+  peindre(true); ecrireURL();
+  if (st.epingle) assurerVisible(st.epingle);
+}
+function ecrireURL(){
+  try {
+    var u = new URL(location.href);
+    if (st.epingle) u.searchParams.set("focus", st.epingle); else u.searchParams.delete("focus");
+    if (st.filtre !== "tout") u.searchParams.set("filtre", st.filtre); else u.searchParams.delete("filtre");
+    if (st.plan) u.searchParams.set("vue", "plan"); else u.searchParams.delete("vue");
+    history.replaceState(null, "", u.toString());
+  } catch (err) { /* en file://, certains navigateurs refusent : sans gravité */ }
+}
+Object.keys(tiles).forEach(function(id){
+  var el = tiles[id].el;
+  if (survolPossible){
+    el.addEventListener("mouseenter", function(){ clearTimeout(minuterie); st.survol = id; peindre(); });
+    el.addEventListener("mouseleave", function(){ clearTimeout(minuterie); minuterie = setTimeout(function(){ st.survol = null; peindre(); }, 110); });
+  }
+  el.addEventListener("focus", function(){ if (el.matches(":focus-visible")){ st.clavier = id; peindre(); } });
+  el.addEventListener("blur", function(){ if (st.clavier === id){ st.clavier = null; peindre(); } });
+  el.addEventListener("click", function(ev){ ev.stopPropagation(); epingler(st.epingle === id ? null : id); });
+});
+map.addEventListener("click", function(){ if (st.epingle) epingler(null); else if (compact.matches && resumeOuvert) fermerFeuille(); });
+document.addEventListener("keydown", function(ev){
+  if (ev.key === "Escape"){ if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); st.clavier = null; epingler(null); return; }
+  var t = ev.target.closest ? ev.target.closest(".map .tile") : null; if (!t || ev.key.indexOf("Arrow") !== 0) return;
+  var r = tiles[t.getAttribute("data-id")].rang, ligne = rangees[r], i = ligne.indexOf(t), cible = null;
+  if (ev.key === "ArrowLeft") cible = ligne[i - 1]; else if (ev.key === "ArrowRight") cible = ligne[i + 1];
+  else {
+    var autre = rangees[r + (ev.key === "ArrowDown" ? 1 : -1)], x = t.getBoundingClientRect(); x = x.left + x.width / 2;
+    if (autre) cible = autre.reduce(function(p, q){ var a = p.getBoundingClientRect(), b = q.getBoundingClientRect(); return Math.abs(b.left + b.width / 2 - x) < Math.abs(a.left + a.width / 2 - x) ? q : p; });
+  }
+  if (cible){ ev.preventDefault(); cible.focus(); }
+});
+/* ───────── Compact : la ligne de résumé, la poignée et la croix de la feuille ───────── */
+(function(){
+  var barre = document.getElementById("resume");
+  Object.keys(ETATS).forEach(function(k){
+    var n = S.modules.filter(function(x){ return x.etat === k; }).length; if (!n) return;
+    barre.appendChild(h("span", { "class": "rb-c" }, [ h("i", { style: "--c:" + ETATS[k].c }), h("b", { text: String(n) }), ETATS[k].nom.toLowerCase() ]));
+  });
+  barre.appendChild(h("span", { "class": "rb-go", "aria-hidden": "true" }));
+  barre.addEventListener("click", function(){ resumeOuvert = true; st.epingle = null; st.survol = null; peindre(true); ecrireURL(); poserFeuille("ouverte"); });
+})();
+function fermerFeuille(){
+  resumeOuvert = false;
+  if (st.epingle){ epingler(null); return; }
+  if (st.plan){ st.plan = false; peindre(true); ecrireURL(); }
+  poserFeuille("fermee");
+}
+document.getElementById("sheet-close").addEventListener("click", fermerFeuille);
+(function(){
+  var y0 = null, h0 = 0, bouge = false;
+  function basculer(){ poserFeuille(etatFeuille === "ouverte" ? "coup-d-oeil" : "ouverte"); }
+  grab.addEventListener("pointerdown", function(ev){
+    if (!compact.matches) return;
+    y0 = ev.clientY; h0 = hauteurFeuille(etatFeuille); bouge = false; feuille.classList.add("glisse");
+    try { grab.setPointerCapture(ev.pointerId); } catch (err) {}
+  });
+  grab.addEventListener("pointermove", function(ev){
+    if (y0 == null) return;
+    var dy = ev.clientY - y0; if (Math.abs(dy) > 6) bouge = true;
+    if (bouge) document.documentElement.style.setProperty("--sheet-h", Math.max(72, Math.min(window.innerHeight - 76, h0 - dy)) + "px");
+  });
+  function fin(ev){
+    if (y0 == null) return;
+    var hFin = h0 - (ev.clientY - y0); y0 = null; feuille.classList.remove("glisse");
+    if (!bouge){ basculer(); return; }
+    if (hFin < 70){ fermerFeuille(); return; }
+    var mieux = "coup-d-oeil";
+    ["ouverte", "pleine"].forEach(function(c){ if (Math.abs(hauteurFeuille(c) - hFin) < Math.abs(hauteurFeuille(mieux) - hFin)) mieux = c; });
+    poserFeuille(mieux);
+  }
+  grab.addEventListener("pointerup", fin); grab.addEventListener("pointercancel", fin);
+  grab.addEventListener("click", function(ev){ if (ev.detail === 0) basculer(); });   /* activation au clavier : pas de pointeur */
+})();
+window.addEventListener("resize", function(){ if (compact.matches) poserFeuille(etatFeuille); });
+if (compact.addEventListener) compact.addEventListener("change", function(){
+  poserFeuille(compact.matches ? (st.epingle ? "ouverte" : "fermee") : "fermee"); resumeOuvert = false; recalculer();
+});
+
+/* ───────── Le bouton Plan ───────── */
+function ouvrirPlan(){
+  if (!PLAN) return;
+  st.plan = true; st.epingle = null; st.survol = null; st.clavier = null;
+  if (compact.matches){ resumeOuvert = true; poserFeuille("pleine"); }
+  peindre(true); ecrireURL();
+}
+(function(){
+  var b = document.getElementById("plan-btn"), pastille = document.getElementById("plan-n");
+  if (!PLAN) return;
+  b.hidden = false;
+  var nU = tachesTriees("urgent").length;
+  if (nU){ pastille.hidden = false; pastille.textContent = String(nU); b.title = "Plan d'action · " + (nU > 1 ? nU + " points urgents" : "1 point urgent"); }
+  b.addEventListener("click", function(){ if (st.plan) fermerFeuille(); else ouvrirPlan(); });
+})();
+
+/* ───────── Le bouton Partager : le même fichier, mais anonyme ─────────
+   On repart du squelette de la page (styles et code compris), on y colle les données passées par
+   window.ANONYME, et on télécharge le tout. Le plan n'est pas du voyage : sans window.PLAN, la carte
+   masque son bouton d'elle-même. Si un nom public manque ou si une info sensible survit, rien ne sort. */
+(function(){
+  var b = document.getElementById("partage-btn"), minuteur;
+  if (!b) return;
+  if (!window.ANONYME){ b.hidden = true; return; }
+
+  function mot(txt, duree){
+    var t = document.getElementById("mot");
+    if (!t){ t = h("div", { id: "mot", "class": "mot", role: "status" }); document.body.appendChild(t); }
+    t.textContent = txt; t.hidden = false;
+    clearTimeout(minuteur); minuteur = setTimeout(function(){ t.hidden = true; }, duree || 6000);
+  }
+
+  /* Le lien d'abord : quand la version anonyme est publiée (ANONYME.lien), le clic copie son adresse.
+     Un fichier HTML ne s'affiche pas dans l'aperçu d'une messagerie, un lien s'ouvre partout.
+     Maj+clic, ou pas de lien : on fabrique le fichier. */
+  var lien = window.ANONYME.lien;
+  function copier(txt){
+    function secours(){
+      var z = h("textarea", { readonly: "", style: "position:fixed;top:0;left:0;opacity:0" }), ok = false;
+      z.value = txt; document.body.appendChild(z); z.select();
+      try { ok = document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(z); return ok;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText)
+      return navigator.clipboard.writeText(txt).then(function(){ return true; }, secours);
+    return Promise.resolve(secours());
+  }
+  if (lien){
+    b.title = "Copier le lien de la version partageable (anonyme) · Maj+clic : télécharger le fichier";
+    b.setAttribute("aria-label", "Copier le lien de la version partageable et anonyme");
+  }
+
+  b.addEventListener("click", function(ev){
+    if (lien && !ev.shiftKey){
+      var dPub = lireDate(window.ANONYME.lienMaj), retard = dPub && dMaj && dPub < dMaj;
+      var suite = lien + (retard ? " · La page en ligne date du " + dateLongue(dPub) + ", la carte a changé depuis : à republier." : "");
+      mot("Le lien à partager : " + suite, 14000);   /* affiché tout de suite : la copie peut être refusée, ou ne jamais répondre */
+      copier(lien).then(function(ok){ if (ok) mot("Lien copié : " + suite, retard ? 14000 : 8000); });
+      return;
+    }
+    var res, i, sc, neuf, html, url, a, pose = false;
+    try { res = window.ANONYME.appliquer(S); }
+    catch (e){ mot("Export impossible : " + e.message, 10000); return; }
+
+    if (res.manquants.length){
+      mot("Pas de nom public pour " + res.manquants.join(", ") + " : ajoute-le dans window.ANONYME.modules, dans stack-data.js. Rien n'a été exporté.", 14000);
+      return;
+    }
+    if (res.fuites.length){
+      mot(res.fuites.length + " info" + (res.fuites.length > 1 ? "s" : "") + " sensible" + (res.fuites.length > 1 ? "s" : "")
+        + " restante" + (res.fuites.length > 1 ? "s" : "") + " : " + res.fuites[0].quoi + " dans " + res.fuites[0].ou
+        + ". Rien n'a été exporté.", 14000);
+      return;
+    }
+
+    /* chaque module emporte son dessin, jamais son identifiant d'origine */
+    res.stack.modules.forEach(function(m){ m.icone = ICONS[res.icones[m.id]] || ICONS._; });
+
+    var corps = SQUELETTE.cloneNode(true), scripts = corps.querySelectorAll("script");
+    var bp = corps.querySelector("#partage-btn"); if (bp) bp.parentNode.removeChild(bp);
+    for (i = 0; i < scripts.length; i++){
+      sc = scripts[i];
+      if ((sc.getAttribute("src") || "").indexOf("stack-data") >= 0 || /window\.STACK\s*=/.test(sc.textContent || "")){
+        neuf = document.createElement("script");
+        neuf.textContent = "window.STACK = " + JSON.stringify(res.stack).replace(/<\//g, "<" + String.fromCharCode(92) + "/") + ";";
+        sc.parentNode.replaceChild(neuf, sc);
+        pose = true;
+        break;
+      }
+    }
+    if (!pose){ mot("Les données de la carte n'ont pas été retrouvées dans la page : rien n'a été exporté.", 10000); return; }
+
+    var NL = String.fromCharCode(10), GUI = String.fromCharCode(34);
+    html = "<!DOCTYPE html>" + NL + "<html lang=" + GUI + "fr" + GUI + ">" + NL
+         + "<head>" + NL + document.head.innerHTML + NL + "</head>" + NL
+         + "<body>" + NL + corps.innerHTML + NL + "</body>" + NL + "</html>";
+    html = window.ANONYME.purgerPage(html, res.stack.proprietaire);
+    var reste = window.ANONYME.fuitesPage(html, res.stack.proprietaire);
+    if (reste.length){
+      mot("Le fichier cite encore " + reste[0].quoi + " (" + reste[0].autour + "). Rien n'a ete exporte.", 14000);
+      return;
+    }
+    url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+    a = h("a", { href: url, download: "stack-partageable.html" });
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 10000);
+    mot("stack-partageable.html : " + res.stack.modules.length + " modules, sans nom d'outil, sans adresse, sans chemin, sans plan.");
+  });
+})();
+
+document.getElementById("theme").addEventListener("click", function(){
+  var r = document.documentElement; r.dataset.theme = r.dataset.theme === "dark" ? "light" : "dark";
+});
+if (window.matchMedia && !params.get("theme")) matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(ev){ document.documentElement.dataset.theme = ev.matches ? "dark" : "light"; });
+
+/* ───────── Démarrage : ?focus=<id> pré-sélectionne un module, ?filtre=<type> un filtre ───────── */
+var f0 = params.get("filtre"); if (f0 && S.typesDeLien[f0]) st.filtre = f0;
+var m0 = params.get("focus"); if (m0 && byId[m0]) st.epingle = m0;
+if (!st.epingle && params.get("vue") === "plan" && PLAN) st.plan = true;
+function recalculer(){ mesurer(); placerCurseur(); peindre(true, true); }
+recalculer();
+/* Compact : ?focus=<id> ouvre la fiche, ?vue=resume ouvre « ce qui demande ton attention ». Pas d'animation au premier affichage. */
+if (compact.matches){
+  feuille.classList.add("glisse");
+  if (!st.epingle && (st.plan || params.get("vue") === "resume")) resumeOuvert = true;
+  poserFeuille(st.plan ? "pleine" : st.epingle || resumeOuvert ? "ouverte" : "fermee");
+  if (st.epingle) assurerVisible(st.epingle, true);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ feuille.classList.remove("glisse"); }); });
+}
+if (window.ResizeObserver) new ResizeObserver(function(){ recalculer(); }).observe(map); else window.addEventListener("resize", recalculer);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(recalculer);
+})();
+</script>
+</body>
+</html>
